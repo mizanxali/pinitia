@@ -1,307 +1,159 @@
 # CLAUDE.md — Pinitia
 
-## Project Overview
+Prediction markets on Google Maps per-star review counts. Users bet LONG/SHORT on whether a venue's star-bucket count will meet a target by a deadline. Binary parimutuel model — winners split losers' pool minus 2% fee.
 
-Pinitia is a prediction market platform where users bet on per-star review counts of Google Maps venues. It is built as an Initia EVM appchain (Minitia) for the INITIATE Hackathon 2026.
+## Market Types
 
-- **Deadline**: April 15, 2026
-- **Track**: Gaming & Consumer
-- **VM**: EVM (Solidity)
-- **Native Feature**: Auto-signing
-- **Chain ID**: `pinitia-1`
+1. **THRESHOLD** — `finalCounts[starBucket] >= target`
+2. **DELTA** — `finalCounts[starBucket] - initialCounts[starBucket] >= target`
+3. **RATIO** — `(finalCounts[starBucketA] * PRECISION) / finalCounts[starBucketB] >= target * PRECISION`
 
-## What This Project Does
+## Architecture
 
-Users bet on whether a specific star-bucket count for a Google Maps venue will meet a target by a resolution date. Example: "Will this restaurant have >200 five-star reviews by May 1?"
+```
+VPS (oracle)                        Supabase (Postgres)           EVM Minitia (on-chain)
+  scrape histograms ──write──▶  histogram_snapshots table    ◀──read── frontend (Vercel)
+  via Playwright     ──post──▶  HistogramOracle contract     ◀──read── frontend (Vercel)
+```
 
-Three market types:
-
-1. **Per-Star Threshold** — will the count for star bucket X be >= target at resolution?
-2. **Per-Star Delta** — will star bucket X gain >= target new reviews between market creation and resolution?
-3. **Star Ratio** — will the ratio of star bucket A to star bucket B be >= target at resolution?
-
-Markets are binary parimutuel: bettors go LONG or SHORT, winners split the losers' pool minus 2% protocol fee.
+Oracle writes to Supabase (time-series for frontend charts) and on-chain (for settlement). Markets are operator-seeded, not user-created.
 
 ## Repository Structure
 
 ```
 pinitia/
-├── .initia/submission.json
-├── contracts/                    # Solidity contracts (Foundry)
+├── contracts/           # Solidity (Foundry)
 │   ├── src/
-│   │   ├── MarketFactory.sol     # Creates and indexes markets
-│   │   ├── StarMarket.sol        # Individual market logic + settlement
-│   │   └── HistogramOracle.sol   # Trusted oracle for posting histogram data
+│   │   ├── MarketFactory.sol
+│   │   ├── StarMarket.sol
+│   │   └── HistogramOracle.sol
 │   ├── test/
-│   │   ├── StarMarket.t.sol
-│   │   └── HistogramOracle.t.sol
 │   └── foundry.toml
-├── oracle/                       # Off-chain scraper service
+├── oracle/              # Node.js scraper + seed service
 │   ├── src/
-│   │   ├── index.ts              # Cron entrypoint
-│   │   ├── scraper.ts            # Playwright histogram extraction
-│   │   ├── validator.ts          # Cross-check vs Places API
-│   │   └── poster.ts             # On-chain tx submission
-│   ├── cache/                    # Local histogram cache (JSON)
-│   └── package.json
-├── frontend/                     # Next.js 14 App Router
-│   ├── src/
-│   │   ├── app/                  # Pages and layouts
-│   │   ├── components/
-│   │   │   ├── Histogram.tsx     # Per-star bar chart with delta overlay
-│   │   │   ├── BetPanel.tsx      # Long/Short bet placement
-│   │   │   ├── MarketCard.tsx    # Market summary card
-│   │   │   └── VenueMap.tsx      # Google Maps with venue pins
-│   │   ├── providers/
-│   │   │   └── AutoSignProvider.tsx
-│   │   ├── hooks/
-│   │   └── lib/contracts.ts      # ABIs, addresses, contract helpers
-│   └── package.json
-└── README.md
+│   │   ├── index.ts     # Cron entrypoint
+│   │   ├── scraper.ts   # Playwright histogram extraction
+│   │   ├── validator.ts # Cross-check vs Places API
+│   │   ├── poster.ts    # On-chain tx submission
+│   │   ├── db.ts        # Supabase client
+│   │   └── seed.ts      # Seed markets from venues.json
+│   └── venues.json
+└── frontend/            # Next.js 14 (built separately, not by Claude Code)
 ```
-
-## Tech Stack
-
-| Layer             | Technology                                        |
-| ----------------- | ------------------------------------------------- |
-| Contracts         | Solidity, Foundry (forge, cast)                   |
-| Frontend          | Next.js 14 (App Router), TypeScript, Tailwind CSS |
-| Wallet            | @initia/interwovenkit-react (EVM integration)     |
-| Chain interaction | viem + wagmi                                      |
-| Maps              | Google Maps JavaScript API + Places API (New)     |
-| Scraper           | Playwright (headless Chromium)                    |
-| Oracle service    | Node.js, ethers.js or viem                        |
-| Charts            | Recharts                                          |
-| State management  | TanStack Query                                    |
 
 ## Smart Contracts
 
 ### MarketFactory.sol
 
-- `createMarket(placeId, starBucket, marketType, target, duration, initialCounts[5])` — deploys a StarMarket
-- `getMarketsByPlace(placeId)` — returns market addresses for a Place ID
-- `getActiveMarkets()` — returns all unresolved markets
-- Maintains on-chain mappings: `placeId → address[]` and `user → market[]` (populated on bet placement)
-- Enforces max 5 concurrent markets per venue
+- `createMarket(placeId, starBucket, starBucketB, marketType, target, duration, initialCounts[5])` — deploys StarMarket. **Owner-only.** For THRESHOLD/DELTA, `starBucketB` ignored (pass 0). For RATIO, `starBucket` = numerator, `starBucketB` = denominator.
+- `getMarketsByPlace(placeId)` → `address[]`
+- `getActiveMarkets()` → `address[]`
+- On-chain mappings: `placeId → address[]`, `user → market[]` (populated on bet)
+- Max 5 concurrent markets per venue
+- Events: `MarketCreated`
 
 ### StarMarket.sol
 
-- `betLong() payable` / `betShort() payable` — place bets
-- `resolve(uint256[5] finalCounts)` — oracle-only; evaluates win condition
-- `claim()` — winners withdraw proportional share minus 2% fee
-- `getMarketInfo()` — returns all market metadata in one view call
-- `getUserPosition(address)` — returns user's positions and claimable amount
-
-Win condition logic per market type:
-
-- Threshold: `finalCounts[starBucket] >= target`
-- Delta: `finalCounts[starBucket] - initialCounts[starBucket] >= target`
-- Ratio: `(finalCounts[starA] * PRECISION) / finalCounts[starB] >= targetRatio`
+- `betLong() payable` / `betShort() payable`
+- `resolve(uint256[5] finalCounts)` — oracle-only
+- `claim()` — winners get proportional share minus 2% fee
+- `getMarketInfo()` — view returning all metadata (starBucket, starBucketB, marketType, target, expiry, pools, initialCounts, finalCounts, resolved)
+- `getUserPosition(address)` — view returning long/short amounts + claimable
+- Events: `BetPlaced`, `MarketResolved`, `WinningsClaimed`
 
 ### HistogramOracle.sol
 
-- `postHistogram(placeId, uint256[5] counts)` — posts full histogram, triggers resolve on eligible markets
+- `postHistogram(placeId, uint256[5] counts)` — posts histogram, triggers resolve on eligible markets for that placeId
 - `batchPost(placeIds[], counts[][])` — batch resolution
-- Only callable by the authorized oracle address
+- `setOracle(address)` — owner-only
+- Only authorized oracle address can post
 
-### Contract Design Principles
+### Contract Conventions
 
-- **No custom indexer needed** — contracts store all query-able state on-chain (place→markets mapping, user→markets mapping, active markets array)
-- Frontend reads via view functions + `eth_getLogs` for events
-- Events emitted: `MarketCreated`, `BetPlaced`, `MarketResolved`, `WinningsClaimed`
-- Use `uint256` scaled by 1e18 for INIT amounts
-- Star bucket is a `uint8` (0=1star, 1=2star, 2=3star, 3=4star, 4=5star)
-- Market type is an enum: `THRESHOLD`, `DELTA`, `RATIO`
+- `uint256` scaled by 1e18 for INIT amounts
+- Star bucket: `uint8` (0=1star, 1=2star, 2=3star, 3=4star, 4=5star)
+- Market type: `enum MarketType { THRESHOLD, DELTA, RATIO }`
+- No custom indexer — frontend reads via view functions + `eth_getLogs`
 
-## Oracle / Scraper
+## Oracle Service
 
-### How the scraper works
+### Scraper Pipeline
 
-1. Query on-chain for markets within 1 hour of resolution, extract unique Place IDs
-2. Launch Playwright, navigate to Google Maps place page: `https://www.google.com/maps/place/?q=place_id:{PLACE_ID}`
-3. Wait for the review histogram to render
-4. Extract per-star counts from the histogram bar aria-labels (e.g., `"247, 5 stars"`)
-5. Validate: sum of star counts should ≈ `userRatingCount` from Places API (reject if >5% discrepancy)
-6. Cache the histogram locally with timestamp
-7. Post on-chain via `HistogramOracle.postHistogram()` or `batchPost()`
+1. Read active Place IDs from on-chain (all active venues, not just expiring ones — to build continuous time-series)
+2. Playwright: navigate to `https://www.google.com/maps/place/?q=place_id:{PLACE_ID}`
+3. Extract per-star counts from histogram bar aria-labels (e.g., `"247, 5 stars"`)
+4. Validate: sum ≈ `userRatingCount` from Places API (reject if >5% discrepancy)
+5. Write snapshot to Supabase
+6. If market is at/past resolution: post on-chain via `HistogramOracle.postHistogram()`
 
-### Scraper configuration
+### Scraper Config
 
-- Runs on cron every 10 minutes
-- Sequential scraping with 3-second delays between places
-- Retries 3x on failure, then falls back to cached histogram
-- Signing key stored as environment variable
+- Cron every 10 minutes
+- Sequential with 3s delays between places
+- 3x retry, fallback to latest Supabase snapshot
+- Cookie-dismiss step needed for Google Maps
 
-### Snapshot flow for delta markets
+### Seed Script (`seed.ts`)
 
-When creating a delta market, the frontend calls a backend API route that triggers an immediate scrape for the Place ID. The scraped counts are passed as `initialCounts` to `MarketFactory.createMarket()` and stored immutably in the StarMarket.
+1. Read `venues.json`
+2. Scrape histogram for each venue
+3. Write initial snapshot to Supabase
+4. Call `MarketFactory.createMarket()` with params + initial counts
+5. Idempotent — skip if market already exists for same venue/bucket/type
 
-## Frontend
-
-### Pages
-
-| Route               | Purpose                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `/`                 | Map explore page with venue pins, active market counts, search                            |
-| `/venue/[placeId]`  | Venue detail: live histogram, active markets per bucket, create market CTA                |
-| `/market/[address]` | Market detail: histogram snapshot vs current (delta overlay), pools, countdown, bet panel |
-| `/portfolio`        | User's positions, claimable winnings, PnL history                                         |
-| `/leaderboard`      | Top traders by PnL, .init usernames                                                       |
-| `/create`           | Create market flow: search → histogram → pick bucket/type/target/duration                 |
-
-### Histogram UI Component
-
-The signature visual: 5 horizontal bars (one per star), showing current count with a proportional fill. For delta markets, a dotted outline shows the initial snapshot and solid fill shows current count. Color: green for target bucket, gray for others, red if target at risk.
-
-### InterwovenKit EVM Integration
-
-Provider setup for the EVM Minitia:
-
-```tsx
-// providers.tsx
-import { createConfig, http, WagmiProvider } from "wagmi";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  initiaPrivyWalletConnector,
-  injectStyles,
-  InterwovenKitProvider,
-  TESTNET,
-} from "@initia/interwovenkit-react";
-import interwovenKitStyles from "@initia/interwovenkit-react/styles.js";
-
-const pinitiaChain = {
-  id: "pinitia-1",
-  name: "Pinitia",
-  nativeCurrency: { name: "MIN", symbol: "MIN", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["http://localhost:8545"] }, // Local dev; update for testnet
-  },
-};
-
-const wagmiConfig = createConfig({
-  connectors: [initiaPrivyWalletConnector],
-  chains: [pinitiaChain],
-  transports: { [pinitiaChain.id]: http() },
-});
-
-const queryClient = new QueryClient();
-```
-
-### Auto-signing Configuration
-
-For the EVM Minitia, use the simple boolean config — it auto-grants `/minievm.evm.v1.MsgCall` which covers all contract calls (betLong, betShort, claim):
-
-```tsx
-<InterwovenKitProvider {...TESTNET} defaultChainId="pinitia-1" enableAutoSign>
-  {children}
-</InterwovenKitProvider>
-```
-
-If you need explicit control later:
-
-```tsx
-enableAutoSign={{
-  'pinitia-1': ['/minievm.evm.v1.MsgCall'],
-}}
-```
-
-## Initia Appchain useful endpoints
-
-- Local rollup indexer: `http://localhost:8080`
-- Local rollup RPC: `http://localhost:26657`
-- Local rollup REST: `http://localhost:1317`
-- Local EVM JSON-RPC: `http://localhost:8545`
-- L1 testnet RPC: `https://rpc.testnet.initia.xyz`
-- L1 testnet REST: `https://rest.testnet.initia.xyz`
-- Faucet: `https://faucet.testnet.initia.xyz`
-
-## Environment Variables
-
-```bash
-# Oracle service
-ORACLE_PRIVATE_KEY=           # EOA private key for posting histograms
-MINITIA_RPC_URL=              # EVM JSON-RPC endpoint
-HISTOGRAM_ORACLE_ADDRESS=     # Deployed HistogramOracle contract address
-MARKET_FACTORY_ADDRESS=       # Deployed MarketFactory contract address
-GOOGLE_PLACES_API_KEY=        # For validation cross-check
-
-# Frontend
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=   # Google Maps JS API key
-NEXT_PUBLIC_MINITIA_RPC_URL=       # EVM JSON-RPC endpoint
-NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=
-NEXT_PUBLIC_CHAIN_ID=pinitia-1
-```
-
-## Development Workflow
-
-### Contracts
-
-```bash
-cd contracts
-forge build                     # Compile
-forge test                      # Run tests
-forge test -vvvv                # Verbose test output
-forge script script/Deploy.s.sol --rpc-url $MINITIA_RPC_URL --broadcast  # Deploy
-```
-
-### Oracle service
-
-```bash
-cd oracle
-npm install
-npx playwright install chromium  # Install browser
-npm run dev                      # Run scraper in dev mode
-npm run scrape -- --place-id "ChIJ..."  # Test single place scrape
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev                      # http://localhost:3000
-```
-
-## Key Decisions
-
-1. **No custom indexer** — use on-chain view functions + eth_getLogs. Contracts maintain placeId→markets and user→markets mappings.
-2. **Playwright over API for histogram** — the per-star breakdown is not in the Places API. Scraping is the only option. Use aria-label selectors (most stable).
-3. **Trusted single oracle for hackathon** — acceptable trade-off. Roadmap: multi-sig → decentralized scraper network.
-4. **Parimutuel over AMM** — simpler to implement, no liquidity bootstrapping needed, works well for binary markets.
-5. **Simple auto-sign boolean** — the boolean `enableAutoSign` auto-detects EVM and grants `/minievm.evm.v1.MsgCall`. No need for explicit per-chain config unless we add multi-chain later.
-6. **Delta markets as primary** — they have the most movement and narrative energy. Threshold and Ratio are secondary market types.
-
-## Submission Checklist
-
-- [ ] Contracts deployed on pinitia-1 Minitia
-- [ ] Frontend uses InterwovenKit for wallet connection
-- [ ] Auto-signing works for bet placement (3+ bets without popup)
-- [ ] Oracle scrapes and resolves at least 1 market
-- [ ] `.initia/submission.json` with all required fields
-- [ ] `README.md` with Initia Hackathon Submission section
-- [ ] Demo video (1-3 min): connect → auto-sign → browse histogram → bet → resolve → claim
-- [ ] Public GitHub repo
-
-### submission.json
+### venues.json
 
 ```json
-{
-  "project_name": "Pinitia",
-  "repo_url": "https://github.com/mizanxali/pinitia",
-  "commit_sha": "<final-commit-sha>",
-  "rollup_chain_id": "pinitia-1",
-  "deployed_address": "<MarketFactory-address>",
-  "vm": "evm",
-  "native_feature": "auto-signing",
-  "core_logic_path": "contracts/src/StarMarket.sol",
-  "native_feature_frontend_path": "frontend/src/providers/AutoSignProvider.tsx",
-  "demo_video_url": "https://youtu.be/..."
-}
+[
+  {
+    "placeId": "ChIJL2smbym5woARSNIB3tG0aOA",
+    "markets": [
+      { "type": "DELTA", "starBucket": 4, "target": 30, "durationDays": 14 },
+      {
+        "type": "THRESHOLD",
+        "starBucket": 0,
+        "target": 50,
+        "durationDays": 30
+      },
+      {
+        "type": "RATIO",
+        "starBucketA": 4,
+        "starBucketB": 0,
+        "target": 5,
+        "durationDays": 14
+      }
+    ]
+  }
+]
 ```
 
-## Common Issues
+## Supabase
 
-- **Playwright can't find histogram**: Google Maps may require accepting cookies. Add a cookie-dismiss step in the scraper. Also check that the place actually has reviews.
-- **Auto-sign not working**: Ensure `defaultChainId` is set to `pinitia-1` (the Cosmos chain ID), not the EVM numeric chain ID.
-- **Contract deployment fails**: Check gas station account has sufficient balance on the Minitia. Fund via `minitiad tx bank send gas-station init1ukcngvyweqhdd58xcg3uqdhj3zxtkj4cdq6wa9 1000000umin`.
-- **eth_getLogs returns empty**: The local EVM JSON-RPC may lag behind block production. Add a short delay or poll with retry.
+```sql
+create table histogram_snapshots (
+  id bigint generated always as identity primary key,
+  place_id text not null,
+  star_1 integer not null,
+  star_2 integer not null,
+  star_3 integer not null,
+  star_4 integer not null,
+  star_5 integer not null,
+  scraped_at timestamptz not null default now()
+);
+
+create index idx_snapshots_place_time on histogram_snapshots (place_id, scraped_at desc);
+```
+
+RLS: public read (anon key), write via service role key only.
+
+## Environment Variables (Oracle)
+
+```bash
+ORACLE_PRIVATE_KEY=
+MINITIA_RPC_URL=
+HISTOGRAM_ORACLE_ADDRESS=
+MARKET_FACTORY_ADDRESS=
+GOOGLE_PLACES_API_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```

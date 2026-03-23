@@ -1,0 +1,26 @@
+[
+  {
+    "placeId": "ChIJ-a6pEckVrjsRVXIhjVbVQ5o",
+    "markets": [
+      {
+        "type": "DELTA",
+        "starBucket": 4,
+        "target": 30,
+        "durationDays": 14
+      },
+      {
+        "type": "THRESHOLD",
+        "starBucket": 0,
+        "target": 50,
+        "durationDays": 30
+      },
+      {
+        "type": "RATIO",
+        "starBucketA": 4,
+        "starBucketB": 0,
+        "target": 5,
+        "durationDays": 14
+      }
+    ]
+  }
+]
