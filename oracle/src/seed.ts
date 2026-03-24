@@ -1,9 +1,9 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
-import { config } from "./config.js";
 import { MarketFactoryABI } from "./abis.js";
-import { fetchPlaceData } from "./fetcher.js";
+import { config } from "./config.js";
 import { writeSnapshot } from "./db.js";
+import { fetchPlaceData } from "./fetcher.js";
 
 interface VenueMarket {
   type: "VELOCITY" | "RATING";
@@ -17,30 +17,40 @@ interface Venue {
 }
 
 function isoToUnixUtcMidnight(iso: string): number {
-  const date = new Date(iso + "T00:00:00Z");
+  const date = new Date(`${iso}T00:00:00Z`);
   return Math.floor(date.getTime() / 1000);
 }
 
 async function seed() {
-  const venues: Venue[] = JSON.parse(readFileSync(new URL("./venues.json", import.meta.url), "utf-8"));
+  const venues: Venue[] = JSON.parse(
+    readFileSync(new URL("./venues.json", import.meta.url), "utf-8"),
+  );
 
   const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
   const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
-  const factory = new ethers.Contract(config.marketFactoryAddress, MarketFactoryABI, wallet);
+  const factory = new ethers.Contract(
+    config.marketFactoryAddress,
+    MarketFactoryABI,
+    wallet,
+  );
 
   for (const venue of venues) {
     console.log(`\nProcessing venue: ${venue.placeId}`);
 
     // Fetch current data from Places API
     const data = await fetchPlaceData(venue.placeId);
-    console.log(`  Current: rating=${data.rating}, reviews=${data.reviewCount}`);
+    console.log(
+      `  Current: rating=${data.rating}, reviews=${data.reviewCount}`,
+    );
 
     // Write initial snapshot to Supabase
     await writeSnapshot(venue.placeId, data.rating, data.reviewCount);
     console.log(`  Snapshot written`);
 
     // Check existing markets for idempotency
-    const existingMarkets: string[] = await factory.getMarketsByPlace(venue.placeId);
+    const existingMarkets: string[] = await factory.getMarketsByPlace(
+      venue.placeId,
+    );
 
     for (const m of venue.markets) {
       const resolveTimestamp = isoToUnixUtcMidnight(m.resolveDate);
@@ -48,14 +58,19 @@ async function seed() {
       // Check if market already exists (same venue/type/date)
       let alreadyExists = false;
       if (existingMarkets.length > 0) {
-        const MarketABI = ["function getMarketInfo() view returns (uint8, string, uint256, uint256, uint256, uint256, uint256, uint256, uint256, bool)"];
+        const MarketABI = [
+          "function getMarketInfo() view returns (uint8, string, uint256, uint256, uint256, uint256, uint256, uint256, uint256, bool)",
+        ];
         for (const addr of existingMarkets) {
           const market = new ethers.Contract(addr, MarketABI, provider);
           const info = await market.getMarketInfo();
           const existingType = Number(info[0]);
           const existingResolveDate = Number(info[3]);
           const expectedType = m.type === "VELOCITY" ? 0 : 1;
-          if (existingType === expectedType && existingResolveDate === resolveTimestamp) {
+          if (
+            existingType === expectedType &&
+            existingResolveDate === resolveTimestamp
+          ) {
             alreadyExists = true;
             break;
           }
@@ -63,7 +78,9 @@ async function seed() {
       }
 
       if (alreadyExists) {
-        console.log(`  Skipping ${m.type} market (resolveDate=${m.resolveDate}) — already exists`);
+        console.log(
+          `  Skipping ${m.type} market (resolveDate=${m.resolveDate}) — already exists`,
+        );
         continue;
       }
 
@@ -75,7 +92,9 @@ async function seed() {
           data.reviewCount,
         );
         const receipt = await tx.wait();
-        console.log(`  Created VELOCITY market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`);
+        console.log(
+          `  Created VELOCITY market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`,
+        );
       } else {
         const tx = await factory.createRatingMarket(
           venue.placeId,
@@ -83,7 +102,9 @@ async function seed() {
           resolveTimestamp,
         );
         const receipt = await tx.wait();
-        console.log(`  Created RATING market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`);
+        console.log(
+          `  Created RATING market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`,
+        );
       }
     }
   }

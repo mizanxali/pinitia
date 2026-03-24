@@ -1,0 +1,26 @@
+{
+  "name": "pinitia",
+  "version": "1.0.0",
+  "description": "Pinitia is a prediction market platform where users bet on Google Maps venue metrics — review velocity and rating movement. It is built as an Initia EVM appchain (Minitia) for the INITIATE Hackathon 2026.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mizanxali/pinitia.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mizanxali/pinitia/issues"
+  },
+  "homepage": "https://github.com/mizanxali/pinitia#readme",
+  "devDependencies": {
+    "@biomejs/biome": "2.4.8"
+  }
+}

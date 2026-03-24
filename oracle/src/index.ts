@@ -1,7 +1,7 @@
 import cron from "node-cron";
-import { getActiveMarkets, getMarketInfo, postOnChain } from "./poster.js";
+import { getLatestSnapshot, writeSnapshot } from "./db.js";
 import { fetchPlaceData } from "./fetcher.js";
-import { writeSnapshot, getLatestSnapshot } from "./db.js";
+import { getActiveMarkets, getMarketInfo, postOnChain } from "./poster.js";
 
 async function run() {
   console.log(`[${new Date().toISOString()}] Oracle run started`);
@@ -23,14 +23,18 @@ async function run() {
     }
   }
 
-  console.log(`Unique places: ${placeIds.size}, resolvable: ${resolvablePlaceIds.size}`);
+  console.log(
+    `Unique places: ${placeIds.size}, resolvable: ${resolvablePlaceIds.size}`,
+  );
 
   // 2. Fetch data for each place and write snapshots
   for (const placeId of placeIds) {
     try {
       const data = await fetchPlaceData(placeId);
       await writeSnapshot(placeId, data.rating, data.reviewCount);
-      console.log(`Snapshot saved: ${placeId} rating=${data.rating} reviews=${data.reviewCount}`);
+      console.log(
+        `Snapshot saved: ${placeId} rating=${data.rating} reviews=${data.reviewCount}`,
+      );
 
       // 3. Post on-chain only for resolvable markets
       if (resolvablePlaceIds.has(placeId)) {

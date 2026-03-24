@@ -1,13 +1,21 @@
 import { ethers } from "ethers";
+import { MarketABI, MarketFactoryABI, PlaceOracleABI } from "./abis.js";
 import { config } from "./config.js";
-import { PlaceOracleABI, MarketFactoryABI, MarketABI } from "./abis.js";
 import type { PlaceData } from "./fetcher.js";
 
 const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
 const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
 
-export const placeOracle = new ethers.Contract(config.placeOracleAddress, PlaceOracleABI, wallet);
-export const marketFactory = new ethers.Contract(config.marketFactoryAddress, MarketFactoryABI, wallet);
+export const placeOracle = new ethers.Contract(
+  config.placeOracleAddress,
+  PlaceOracleABI,
+  wallet,
+);
+export const marketFactory = new ethers.Contract(
+  config.marketFactoryAddress,
+  MarketFactoryABI,
+  wallet,
+);
 
 /**
  * Post place data on-chain. The PlaceOracle contract auto-resolves any
@@ -16,9 +24,15 @@ export const marketFactory = new ethers.Contract(config.marketFactoryAddress, Ma
 export async function postOnChain(data: PlaceData) {
   // rating scaled by 1e2 (e.g. 4.3 → 430)
   const ratingScaled = Math.round(data.rating * 100);
-  const tx = await placeOracle.postPlaceData(data.placeId, ratingScaled, data.reviewCount);
+  const tx = await placeOracle.postPlaceData(
+    data.placeId,
+    ratingScaled,
+    data.reviewCount,
+  );
   await tx.wait();
-  console.log(`Posted on-chain: ${data.placeId} rating=${data.rating} reviews=${data.reviewCount} tx=${tx.hash}`);
+  console.log(
+    `Posted on-chain: ${data.placeId} rating=${data.rating} reviews=${data.reviewCount} tx=${tx.hash}`,
+  );
 }
 
 /**
