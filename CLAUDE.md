@@ -97,10 +97,10 @@ Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), 
 
 - [x] Contracts deployed on pinitia-1
 - [x] Supabase schema + RLS
-- [ ] 10–15 markets seeded across multiple venues
+- [x] 10–15 markets seeded across multiple venues
 - [ ] Wallet connection + auto-signing (3+ bets without popup)
-- [ ] Oracle resolves at least 1 market
-- [ ] Progress chart with snapshot history
+- [x] Oracle resolves at least 1 market
+- [x] Progress chart with snapshot history
 - [ ] `.initia/submission.json`, README with submission section
 - [ ] Demo video (1-3 min): connect → auto-sign → browse → bet → resolve → claim
 - [ ] Public GitHub repo

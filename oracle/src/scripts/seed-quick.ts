@@ -20,11 +20,13 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === "--minutes") resolveMinutes = Number(args[++i]);
 }
 
-// Pick 3 venues from the full list (diverse categories)
+// Last 5 venues — each has room for 1 more market (4 of 5 slots used)
 const QUICK_VENUES = [
-  { placeId: "ChIJc0JAFaUWrjsRRXSXJPX7YFo", name: "Toit" },
-  { placeId: "ChIJ80IECk8UrjsRqCffDjE09lw", name: "Dyu Art Cafe" },
   { placeId: "ChIJw68tewgVrjsRnVufs2uL3bY", name: "The Grid" },
+  { placeId: "ChIJQ1XqWTYVrjsR5b-exOFv8Wc", name: "Loco Bear" },
+  { placeId: "ChIJK3WK06kXrjsRtJJUPxlNE4A", name: "MAP" },
+  { placeId: "ChIJzRxhID4WrjsRMW9WwS2aSzo", name: "Karnataka Chitrakala Parishath" },
+  { placeId: "ChIJqZQybIEWrjsRezNLL4Ju2Gk", name: "National Gallery of Modern Art" },
 ];
 
 const BET_AMOUNT_MIN = 0.01;
@@ -85,44 +87,25 @@ async function main() {
     await writeSnapshot(venue.placeId, details.rating, details.reviewCount);
     console.log("  Supabase: place + snapshot saved");
 
-    // Create 1 VELOCITY market: target = +5 reviews (easy to reason about)
+    // Create 1 VELOCITY market (1 slot available per venue)
     const velocityTarget = 5;
-    const txV = await factory.createVelocityMarket(
+    const tx = await factory.createVelocityMarket(
       venue.placeId,
       velocityTarget,
       resolveDate,
       details.reviewCount,
     );
-    const receiptV = await txV.wait();
-    // Get market address from event
-    const vLog = receiptV.logs.find(
+    const receipt = await tx.wait();
+    const log = receipt.logs.find(
       (l: any) => l.fragment?.name === "MarketCreated",
     );
-    const vAddr = vLog?.args?.[0] ?? "unknown";
-    console.log(`  VELOCITY  target=+${velocityTarget} reviews  →  ${vAddr}`);
+    const addr = log?.args?.[0] ?? "unknown";
+    console.log(`  VELOCITY  target=+${velocityTarget} reviews  →  ${addr}`);
     createdMarkets.push({
-      address: vAddr,
+      address: addr,
       venue: venue.name,
       type: "VELOCITY",
     });
-
-    // Create 1 RATING market: target = current rating + 0.1
-    const ratingTarget = Math.min(details.rating + 0.1, 5.0);
-    const scaledTarget = Math.round(ratingTarget * 100);
-    const txR = await factory.createRatingMarket(
-      venue.placeId,
-      scaledTarget,
-      resolveDate,
-    );
-    const receiptR = await txR.wait();
-    const rLog = receiptR.logs.find(
-      (l: any) => l.fragment?.name === "MarketCreated",
-    );
-    const rAddr = rLog?.args?.[0] ?? "unknown";
-    console.log(
-      `  RATING    target>=${ratingTarget.toFixed(2)} (${scaledTarget})  →  ${rAddr}`,
-    );
-    createdMarkets.push({ address: rAddr, venue: venue.name, type: "RATING" });
   }
 
   console.log(`\n=== Created ${createdMarkets.length} markets ===\n`);

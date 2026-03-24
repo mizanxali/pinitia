@@ -170,7 +170,10 @@ export default function MarketDetail({ address }: { address: string }) {
               Resolve Date
             </p>
             <p className="font-heading text-sm font-extrabold">
-              {new Date(Number(market.resolveDate) * 1000).toLocaleDateString()}
+              {new Date(Number(market.resolveDate) * 1000).toLocaleString(
+                undefined,
+                { dateStyle: "medium", timeStyle: "short" },
+              )}
             </p>
           </div>
           <div className="border-2 border-border bg-background p-3">

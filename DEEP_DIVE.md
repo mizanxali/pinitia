@@ -346,7 +346,7 @@ Read calls use a standalone viem `publicClient` — no wallet extension required
 - [x] Oracle pipeline (hourly Google Places → Supabase + on-chain)
 - [x] Historical snapshot charts (Recharts)
 - [x] 10–15 markets seeded across multiple venues
-- [ ] Oracle resolves at least 1 market end-to-end
+- [x] Oracle resolves at least 1 market end-to-end
 - [ ] `.initia/submission.json`
 - [ ] Demo video (1–3 min)
 - [ ] Public GitHub repo
