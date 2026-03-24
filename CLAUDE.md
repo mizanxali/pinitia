@@ -59,20 +59,6 @@ Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. In
 | `/portfolio`        | User positions across all markets, claimable winnings                      |
 | `/leaderboard`      | Top traders by PnL                                                         |
 
-### Hooks
-
-| Hook                 | Source        | Purpose                                                        |
-| -------------------- | ------------- | -------------------------------------------------------------- |
-| `useActiveMarkets`   | viem JSON-RPC | All active market addresses + info from chain                  |
-| `useMarketInfo`      | viem JSON-RPC | Single market detail via `getMarketInfo()`                     |
-| `usePlaceMarkets`    | viem JSON-RPC | Markets filtered by placeId                                    |
-| `useUserPosition`    | viem JSON-RPC | User's long/short/claimable for a market                       |
-| `useBet`             | InterwovenKit | `placeBet(isLong, amount)` via `requestTxBlock` with `MsgCall` |
-| `useClaim`           | InterwovenKit | `claim()` via `requestTxBlock` with `MsgCall`                  |
-| `useSnapshotHistory` | Supabase      | Time-series snapshots for charts                               |
-| `usePlaces`          | Supabase      | All places (name, address, photo) for homepage                 |
-| `usePlace`           | Supabase      | Single place metadata by placeId                               |
-
 ### Transaction Pattern (EVM via InterwovenKit)
 
 All write txs use `requestTxBlock` with `typeUrl: "/minievm.evm.v1.MsgCall"`. The message `value` object must include: `sender` (bech32, lowercased `initiaAddress`), `contractAddr` (hex), `input` (ABI-encoded via `encodeFunctionData`), `value` (stringified wei), `accessList: []`, `authList: []`. See `useBet.ts` and `useClaim.ts` for examples.
@@ -81,42 +67,9 @@ All write txs use `requestTxBlock` with `typeUrl: "/minievm.evm.v1.MsgCall"`. Th
 
 All read calls use a standalone `publicClient` created with `createPublicClient({ transport: http(MINITIA_RPC_URL) })` — not wallet-injected. This avoids requiring an EVM browser extension. See `useMarkets.ts`.
 
-### Key Libs
-
-- `lib/chain.ts` — `pinitiaChain` custom chain config for InterwovenKit
-- `lib/contracts.ts` — env-backed constants: `MARKET_FACTORY_ADDRESS`, `CHAIN_ID`, `MINITIA_RPC_URL`, Supabase URL/key
-- `lib/abi.ts` — `MarketFactoryABI`, `MarketABI` (viem-compatible const arrays)
-- `lib/supabase.ts` — Supabase client + `PlaceSnapshot` type
-- `lib/utils.ts` — `cn`, `shortenAddress`, `formatGas` (wei→human), `formatRating` (scaled→decimal), `getCountdown`, `getMarketStatus`
-
-### Components
-
-- `Providers.tsx` — WagmiProvider + QueryClientProvider + InterwovenKitProvider wrapper
-- `Navbar.tsx` — connect/wallet button via `useInterwovenKit` (`openConnect`/`openWallet`)
-- `BetPanel.tsx` — LONG/SHORT bet form with pool visualization
-- `MarketCard.tsx` — market summary card for listing pages
-- `VenueCard.tsx` — venue card for homepage
-- `SnapshotChart.tsx` — Recharts line chart for rating/review history
-
 ### Design System
 
 Neobrutalism style: hard black borders (`border-2 border-border`), offset box shadows (`shadow-neo`), flat saturated colors, no gradients, no rounded corners. Fonts: Space Grotesk (headings) + Inter (body). LONG = green, SHORT = red, resolved = yellow.
-
-### Env Vars
-
-```
-NEXT_PUBLIC_MINITIA_RPC_URL=http://localhost:8545
-NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4
-NEXT_PUBLIC_CHAIN_ID=pinitia-1
-NEXT_PUBLIC_SUPABASE_URL=https://xfsdxweuomaohfkahhai.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>
-```
-
-### Dev Command
-
-```bash
-cd frontend && bun install && bun run dev   # localhost:3000
-```
 
 ## Oracle Pipeline (hourly, already running)
 
