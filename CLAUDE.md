@@ -13,7 +13,7 @@ Initia EVM appchain (Minitia) for INITIATE Hackathon 2026. Deadline: April 15. T
 
 ```
 Oracle (hourly cron) → Google Places API → Supabase (snapshots) + PlaceOracle contract
-Frontend reads: Places API (metadata), Supabase (history), chain via viem/wagmi (markets/positions)
+Frontend reads: Supabase (history), chain via viem (markets/positions), InterwovenKit (wallet + tx signing)
 ```
 
 ## Deployed Contracts (pinitia-1)
@@ -25,47 +25,97 @@ Frontend reads: Places API (metadata), Supabase (history), chain via viem/wagmi 
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 
-## Contract ABIs (for frontend)
+## Contract ABIs
 
-### MarketFactory
+Full ABIs in `frontend/src/lib/abi.ts`. Key functions:
 
-```
-getActiveMarkets() → address[]
-getMarketsByPlace(string placeId) → address[]
-```
+**MarketFactory**: `getActiveMarkets() → address[]`, `getMarketsByPlace(placeId) → address[]`
 
-### Market
+**Market**: `betLong() payable`, `betShort() payable`, `claim()`, `getMarketInfo() → (marketType, placeId, target, resolveDate, longPool, shortPool, initialReviewCount, finalRating, finalReviewCount, resolved)`, `getUserPosition(address) → (longAmount, shortAmount, claimable)`
 
-```
-betLong() payable
-betShort() payable
-claim()
-getMarketInfo() → (uint8 marketType, string placeId, uint256 target, uint256 resolveDate, uint256 longPool, uint256 shortPool, uint256 initialReviewCount, uint256 finalRating, uint256 finalReviewCount, bool resolved)
-getUserPosition(address user) → (uint256 longAmount, uint256 shortAmount, uint256 claimable)
-placeId() → string
-resolveDate() → uint256
-resolved() → bool
-longWins() → bool
-longPool() → uint256
-shortPool() → uint256
-target() → uint256
-marketType() → uint8
-```
+**PlaceOracle**: `postPlaceData(placeId, rating, reviewCount)`, `batchPost(...)`
 
-Events: `BetPlaced(address indexed user, bool isLong, uint256 amount)`, `MarketResolved(bool longWins)`, `WinningsClaimed(address indexed user, uint256 amount)`
-
-### PlaceOracle
-
-```
-postPlaceData(string placeId, uint256 rating, uint256 reviewCount)
-batchPost(string[] placeIds, uint256[] ratings, uint256[] reviewCounts)
-```
-
-Event: `PlaceDataPosted(string placeId, uint256 rating, uint256 reviewCount)`
+Events: `BetPlaced(user, isLong, amount)`, `MarketResolved(longWins)`, `WinningsClaimed(user, amount)`, `PlaceDataPosted(placeId, rating, reviewCount)`
 
 ### Conventions
 
-Bets: native GAS token (18 decimals, 1e18 wei). Ratings: 1e2 (4.6 → 460). Review counts: unscaled. Resolve dates: unix timestamp (midnight UTC). No custom indexer — use view functions + `eth_getLogs`.
+Bets: native GAS token (18 decimals). Ratings: scaled 1e2 (4.6 → 460). Review counts: unscaled. Resolve dates: unix timestamp. No custom indexer — use view functions + `eth_getLogs`.
+
+## Frontend
+
+Next.js 15 App Router, React 19, TypeScript, Tailwind, wagmi 2.17.2, viem, TanStack Query, Recharts, Supabase client, `@initia/interwovenkit-react` 2.4.6.
+
+### Provider Setup (`components/Providers.tsx`)
+
+Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. InterwovenKit spreads `{...TESTNET}` for bridge support. Custom chain config in `lib/chain.ts`. Styles injected via `injectStyles(InterwovenKitStyles)` in a `useEffect`.
+
+### Pages
+
+| Route               | Description                                                                |
+| ------------------- | -------------------------------------------------------------------------- |
+| `/`                 | Curated venue cards grid (venues defined in `lib/venues.ts`)               |
+| `/venue/[placeId]`  | Venue detail — rating/review charts, active markets, snapshot history      |
+| `/market/[address]` | Market detail — progress chart, pool bars, bet panel, user position, claim |
+| `/portfolio`        | User positions across all markets, claimable winnings                      |
+| `/leaderboard`      | Top traders by PnL                                                         |
+
+### Hooks
+
+| Hook                 | Source        | Purpose                                                        |
+| -------------------- | ------------- | -------------------------------------------------------------- |
+| `useActiveMarkets`   | viem JSON-RPC | All active market addresses + info from chain                  |
+| `useMarketInfo`      | viem JSON-RPC | Single market detail via `getMarketInfo()`                     |
+| `usePlaceMarkets`    | viem JSON-RPC | Markets filtered by placeId                                    |
+| `useUserPosition`    | viem JSON-RPC | User's long/short/claimable for a market                       |
+| `useBet`             | InterwovenKit | `placeBet(isLong, amount)` via `requestTxBlock` with `MsgCall` |
+| `useClaim`           | InterwovenKit | `claim()` via `requestTxBlock` with `MsgCall`                  |
+| `useSnapshotHistory` | Supabase      | Time-series snapshots for charts                               |
+
+### Transaction Pattern (EVM via InterwovenKit)
+
+All write txs use `requestTxBlock` with `typeUrl: "/minievm.evm.v1.MsgCall"`. The message `value` object must include: `sender` (bech32, lowercased `initiaAddress`), `contractAddr` (hex), `input` (ABI-encoded via `encodeFunctionData`), `value` (stringified wei), `accessList: []`, `authList: []`. See `useBet.ts` and `useClaim.ts` for examples.
+
+### Read Pattern (EVM via viem)
+
+All read calls use a standalone `publicClient` created with `createPublicClient({ transport: http(MINITIA_RPC_URL) })` — not wallet-injected. This avoids requiring an EVM browser extension. See `useMarkets.ts`.
+
+### Key Libs
+
+- `lib/chain.ts` — `pinitiaChain` custom chain config for InterwovenKit
+- `lib/contracts.ts` — env-backed constants: `MARKET_FACTORY_ADDRESS`, `CHAIN_ID`, `MINITIA_RPC_URL`, Supabase URL/key
+- `lib/abi.ts` — `MarketFactoryABI`, `MarketABI` (viem-compatible const arrays)
+- `lib/supabase.ts` — Supabase client + `PlaceSnapshot` type
+- `lib/utils.ts` — `cn`, `shortenAddress`, `formatGas` (wei→human), `formatRating` (scaled→decimal), `getCountdown`, `getMarketStatus`
+- `lib/venues.ts` — curated venue list with placeIds
+
+### Components
+
+- `Providers.tsx` — WagmiProvider + QueryClientProvider + InterwovenKitProvider wrapper
+- `Navbar.tsx` — connect/wallet button via `useInterwovenKit` (`openConnect`/`openWallet`)
+- `BetPanel.tsx` — LONG/SHORT bet form with pool visualization
+- `MarketCard.tsx` — market summary card for listing pages
+- `VenueCard.tsx` — venue card for homepage
+- `SnapshotChart.tsx` — Recharts line chart for rating/review history
+
+### Design System
+
+Neobrutalism style: hard black borders (`border-2 border-border`), offset box shadows (`shadow-neo`), flat saturated colors, no gradients, no rounded corners. Fonts: Space Grotesk (headings) + Inter (body). LONG = green, SHORT = red, resolved = yellow.
+
+### Env Vars
+
+```
+NEXT_PUBLIC_MINITIA_RPC_URL=http://localhost:8545
+NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0x5427521eDb77281468C21510A5Fa96d1c52EDb41
+NEXT_PUBLIC_CHAIN_ID=pinitia-1
+NEXT_PUBLIC_SUPABASE_URL=https://xfsdxweuomaohfkahhai.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>
+```
+
+### Dev Command
+
+```bash
+cd frontend && npm i && npm run dev   # localhost:3000
+```
 
 ## Oracle Pipeline (hourly, already running)
 
@@ -77,153 +127,15 @@ Bets: native GAS token (18 decimals, 1e18 wei). Ratings: 1e2 (4.6 → 460). Revi
 
 Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), `review_count` (int), `fetched_at` (timestamptz). RLS: public read, service role write.
 
-## Frontend (to build)
-
-Stack: Next.js 14 App Router, TypeScript, Tailwind, Recharts, TanStack Query. Wallet: @initia/interwovenkit-react. Chain: viem + wagmi.
-
-### UI Framework: Neobrutalism Components
-
-Use [neobrutalism.dev](https://www.neobrutalism.dev/) — a shadcn/ui-based component library with neobrutalist styling. This gives Pinitia a bold, high-contrast, playful aesthetic that fits the prediction market vibe.
-
-#### Setup
-
-1. **Initialize shadcn** (CSS variables mode, not utility classes):
-
-   ```bash
-   pnpm dlx shadcn@latest init
-   ```
-
-   - When prompted, choose **CSS variables** (not utility classes — neobrutalism only supports CSS variables mode).
-   - The `baseColor` choice doesn't matter — it gets overwritten.
-
-2. **Install `tw-animate-css`** (replaces deprecated `tailwindcss-animate`):
-
-   ```bash
-   pnpm add tw-animate-css
-   ```
-
-3. **Replace `globals.css`**: Delete existing content and paste the neobrutalism styling from [neobrutalism.dev/styling](https://www.neobrutalism.dev/styling). Pick the color scheme there (blue, green, orange, violet, or custom). The styling page has a "Copy" button.
-
-4. **Install components via CLI** — each component has a CLI command on its docs page:
-   ```bash
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/button.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/card.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/badge.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/dialog.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/tabs.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/progress.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/input.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/table.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/tooltip.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/skeleton.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/alert.json
-   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/select.json
-   ```
-   Components without a CLI command: copy from the neobrutalism docs page into `components/ui/`.
-
-#### Neobrutalism Design Principles (enforce in all UI work)
-
-- **Hard black borders** (`border-2 border-border`) on cards, buttons, inputs, containers
-- **Bold box shadows** — offset shadows (e.g. `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`) that give a "stacked paper" look
-- **Flat, saturated colors** — use the CSS variables from the neobrutalism theme (`--primary`, `--secondary`, `--accent`). No gradients.
-- **No rounded corners or minimal rounding** — prefer `rounded-none` or `rounded-sm`, never `rounded-xl` or `rounded-full` on containers
-- **High contrast** — dark borders on light backgrounds, bold text, clear visual hierarchy
-- **Chunky interactive states** — buttons translate on hover/active (`translate-x-[2px] translate-y-[2px]` + shadow removal) for a "press" effect
-- **Typography** — bold headings, generous font sizes, no thin/light weights
-
-#### Component Mapping for Pinitia
-
-| UI Element             | Neobrutalism Component                | Notes                                                   |
-| ---------------------- | ------------------------------------- | ------------------------------------------------------- |
-| Venue cards on `/`     | `Card`                                | Image card variant if venue has photo, else placeholder |
-| LONG/SHORT bet buttons | `Button` (default + reverse variants) | Green for LONG, red/orange for SHORT                    |
-| Market info panels     | `Card` + `Badge`                      | Badge for market type (VELOCITY/RATING), status         |
-| Bet amount input       | `Input`                               | With inline token symbol                                |
-| Pool distribution      | `Progress`                            | Styled as LONG vs SHORT bar                             |
-| Market countdown       | `Badge` or custom                     | Bold countdown with border                              |
-| Position tables        | `Table`                               | Portfolio page                                          |
-| Market status          | `Alert`                               | For resolved/pending/active states                      |
-| Tab navigation         | `Tabs`                                | Venue page: Overview / Markets / History                |
-| Dialogs/modals         | `Dialog`                              | Bet confirmation, claim winnings                        |
-| Loading states         | `Skeleton`                            | Neobrutalism skeleton with hard borders                 |
-| Dropdowns              | `Select`                              | Market filters                                          |
-| Tooltips               | `Tooltip`                             | Explain market mechanics on hover                       |
-
-#### Color Recommendations
-
-Choose a bold primary from the neobrutalism styling page. Suggested:
-
-- **Blue** — clean, fintech feel
-- **Orange** — energetic, prediction-market vibe (recommended)
-
-Supplement with semantic overrides:
-
-- LONG positions: `bg-green-300` with `border-2 border-black`
-- SHORT positions: `bg-red-300` with `border-2 border-black`
-- Resolved/won: `bg-yellow-200`
-
-#### Fonts
-
-Neobrutalism pairs well with bold, geometric sans-serifs. Recommended:
-
-- **Space Grotesk** (headings) + **Inter** (body) — both on Google Fonts
-- Or just **Inter** everywhere at heavier weights (600-800 for headings)
-
-Add to `layout.tsx`:
-
-```tsx
-import { Space_Grotesk, Inter } from "next/font/google";
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-heading",
-});
-const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
-```
-
-### Pages
-
-- `/` — curated venue cards (no search bar)
-- `/venue/[placeId]` — rating, review count, progress chart, active markets, bet CTAs
-- `/market/[address]` — progress chart with target line, pools, countdown, bet panel
-- `/portfolio` — positions, claimable winnings, PnL
-- `/leaderboard` — top traders by PnL
-
-### Key Hooks
-
-- `usePlaceDetails(placeId)` — Google Places API metadata
-- `useSnapshotHistory(placeId)` — Supabase time-series for charts
-
-### Endpoints
-
-Local EVM JSON-RPC: `http://localhost:8545` | Rollup RPC: `localhost:26657` | REST: `localhost:1317`
-L1 testnet: `rpc.testnet.initia.xyz` / `rest.testnet.initia.xyz` | Faucet: `faucet.testnet.initia.xyz`
-
-### Frontend Env Vars
-
-```bash
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-NEXT_PUBLIC_MINITIA_RPC_URL=http://localhost:8545
-NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0x5427521eDb77281468C21510A5Fa96d1c52EDb41
-NEXT_PUBLIC_CHAIN_ID=pinitia-1
-NEXT_PUBLIC_SUPABASE_URL=https://xfsdxweuomaohfkahhai.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-### Dev Command
-
-```bash
-cd frontend && npm i && npm run dev   # localhost:3000
-```
-
 ## Common Issues
 
-- **Auto-sign not working**: `defaultChainId` must be `pinitia-1` (Cosmos ID), not EVM numeric ID
-- **eth_getLogs empty**: Local RPC may lag — poll with retry
+- **Auto-sign not working**: `defaultChainId` must be `pinitia-1` (Cosmos ID), not EVM numeric ID.
+- **Sender must be bech32**: In `MsgCall`, use `initiaAddress` (bech32, lowercased) for `sender`, hex for `contractAddr`.
+- **`messages` not `msgs`**: `requestTxBlock` uses `messages` (plural). `msgs` causes `Cannot read properties of undefined`.
+- **eth_getLogs empty**: Local RPC may lag — poll with retry.
+- **Shadow/border mismatch**: All interactive elements must have `border-2 border-border` — don't mix rounded and flat styles.
 - **Chart gaps**: Oracle downtime — connect points with lines, don't break
 - **No venue photos**: Use placeholder in VenueCard
-- **Neobrutalism components not styled**: Ensure `globals.css` uses the neobrutalism styling (not default shadcn). The CSS variables mode must be selected during shadcn init.
-- **Shadow/border mismatch**: All interactive elements must have `border-2 border-border` — don't mix rounded and flat styles
 
 ## Submission Checklist
 
