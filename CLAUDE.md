@@ -1,120 +1,155 @@
 # CLAUDE.md — Pinitia
 
-Prediction markets on Google Maps venues. Users bet LONG/SHORT on review velocity or rating movement. Binary parimutuel — winners split losers' pool minus 2% fee. Oracle uses official Google Places API (`rating` + `userRatingCount`). Markets are operator-seeded, resolve on specific dates.
+Prediction markets on Google Maps venues. Bet LONG/SHORT on review velocity or rating movement. Binary parimutuel — winners split losers' pool minus 2% fee. Oracle uses Google Places API (`rating` + `userRatingCount`). Markets are operator-seeded (no user creation). Resolves on specific dates.
+
+Initia EVM appchain (Minitia) for INITIATE Hackathon 2026. Deadline: April 15. Track: Gaming & Consumer.
 
 ## Market Types
 
-1. **VELOCITY** — `finalReviewCount - initialReviewCount >= target`
-2. **RATING** — `finalRating >= target` (rating scaled by 1e2, e.g. 4.2 → 420)
+- **VELOCITY** — `finalReviewCount - initialReviewCount >= target`
+- **RATING** — `finalRating >= target` (scaled 1e2, e.g. 4.2 → 420)
 
 ## Architecture
 
 ```
-VPS (oracle, hourly cron)
-  fetch Places API ──write──▶  Supabase (place_snapshots)  ◀──read── frontend
-  (rating + count)  ──post──▶  PlaceOracle contract         ◀──read── frontend
+Oracle (hourly cron) → Google Places API → Supabase (snapshots) + PlaceOracle contract
+Frontend reads: Places API (metadata), Supabase (history), chain via viem/wagmi (markets/positions)
 ```
 
-## Repo Structure
+## Deployed Contracts (pinitia-1)
+
+| Contract | Address |
+|---|---|
+| MarketFactory | `0x5427521eDb77281468C21510A5Fa96d1c52EDb41` |
+| PlaceOracle | `0xA126fBe076B879d64Cea037e862392409379C474` |
+
+Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
+
+## Contract ABIs (for frontend)
+
+### MarketFactory
 
 ```
-pinitia/
-├── contracts/src/         MarketFactory.sol, Market.sol, PlaceOracle.sol
-├── contracts/test/        Market.t.sol, PlaceOracle.t.sol
-├── contracts/script/      Deploy.s.sol
-├── oracle/src/            index.ts, fetcher.ts, poster.ts, db.ts, seed.ts
-├── oracle/venues.json
-└── frontend/              Next.js 14 (built separately)
+getActiveMarkets() → address[]
+getMarketsByPlace(string placeId) → address[]
 ```
 
-## Contracts
+### Market
 
-### MarketFactory.sol
+```
+betLong() payable
+betShort() payable
+claim()
+getMarketInfo() → (uint8 marketType, string placeId, uint256 target, uint256 resolveDate, uint256 longPool, uint256 shortPool, uint256 initialReviewCount, uint256 finalRating, uint256 finalReviewCount, bool resolved)
+getUserPosition(address user) → (uint256 longAmount, uint256 shortAmount, uint256 claimable)
+placeId() → string
+resolveDate() → uint256
+resolved() → bool
+longWins() → bool
+longPool() → uint256
+shortPool() → uint256
+target() → uint256
+marketType() → uint8
+```
 
-- `createVelocityMarket(placeId, target, resolveDate, initialReviewCount)` — owner-only
-- `createRatingMarket(placeId, target, resolveDate)` — owner-only, target scaled 1e2
-- `getMarketsByPlace(placeId)` → `address[]`
-- `getActiveMarkets()` → `address[]`
-- Mappings: `placeId → address[]`, `user → market[]` (populated on bet)
-- Events: `MarketCreated`
+Events: `BetPlaced(address indexed user, bool isLong, uint256 amount)`, `MarketResolved(bool longWins)`, `WinningsClaimed(address indexed user, uint256 amount)`
 
-### Market.sol
+### PlaceOracle
 
-- `betLong() payable` / `betShort() payable`
-- `resolve(uint256 finalRating, uint256 finalReviewCount)` — oracle-only, requires `block.timestamp >= resolveDate`
-- `claim()` — proportional share minus 2% fee
-- `getMarketInfo()` → (marketType, placeId, target, resolveDate, pools, initialReviewCount, finalRating, finalReviewCount, resolved)
-- `getUserPosition(address)` → (long, short, claimable)
-- Events: `BetPlaced`, `MarketResolved`, `WinningsClaimed`
+```
+postPlaceData(string placeId, uint256 rating, uint256 reviewCount)
+batchPost(string[] placeIds, uint256[] ratings, uint256[] reviewCounts)
+```
 
-### PlaceOracle.sol
-
-- `postPlaceData(placeId, uint256 rating, uint256 reviewCount)` — triggers resolve on eligible markets
-- `batchPost(placeIds[], ratings[], reviewCounts[])`
-- `setOracle(address)` — owner-only
+Event: `PlaceDataPosted(string placeId, uint256 rating, uint256 reviewCount)`
 
 ### Conventions
 
-- Bet amounts: `uint256` scaled 1e18
-- Ratings: `uint256` scaled 1e2 (4.3 → 430)
-- Review counts: `uint256` unscaled
-- Resolve dates: `uint256` unix timestamp (midnight UTC)
-- `enum MarketType { VELOCITY, RATING }`
+Bets: native GAS token (18 decimals, 1e18 wei). Ratings: 1e2 (4.6 → 460). Review counts: unscaled. Resolve dates: unix timestamp (midnight UTC). No custom indexer — use view functions + `eth_getLogs`.
 
-## Oracle
+## Oracle Pipeline (hourly, already running)
 
-### Pipeline (hourly cron)
-
-1. Read active Place IDs from on-chain
-2. Fetch `rating` + `userRatingCount` from Google Places API (New) for each
-3. Write to Supabase `place_snapshots`
-4. If `block.timestamp >= resolveDate`: post on-chain via `PlaceOracle.postPlaceData()`
-
-### Seed Script (`seed.ts`)
-
-1. Read `venues.json`, fetch current data from Places API
-2. Write initial snapshot to Supabase
-3. Call `createVelocityMarket()` or `createRatingMarket()`
-4. Idempotent — skips existing venue/type/date combos
-
-### venues.json
-
-```json
-[
-  {
-    "placeId": "ChIJL2smbym5woARSNIB3tG0aOA",
-    "markets": [
-      { "type": "VELOCITY", "target": 50, "resolveDate": "2026-04-10" },
-      { "type": "RATING", "target": 420, "resolveDate": "2026-04-15" }
-    ]
-  }
-]
-```
+1. Reads active place IDs from MarketFactory on-chain
+2. Fetches from Google Places API, writes to Supabase `place_snapshots`
+3. If past resolveDate: posts on-chain via `PlaceOracle.postPlaceData()` which auto-resolves eligible markets
 
 ## Supabase
 
-```sql
-create table place_snapshots (
-  id bigint generated always as identity primary key,
-  place_id text not null,
-  rating numeric(3,2) not null,
-  review_count integer not null,
-  fetched_at timestamptz not null default now()
-);
-create index idx_snapshots_place_time on place_snapshots (place_id, fetched_at desc);
+Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), `review_count` (int), `fetched_at` (timestamptz). RLS: public read, service role write.
+
+## Frontend (to build)
+
+Stack: Next.js 14 App Router, TypeScript, Tailwind, Recharts, TanStack Query. Wallet: @initia/interwovenkit-react. Chain: viem + wagmi.
+
+### Pages
+
+- `/` — curated venue cards (no search bar)
+- `/venue/[placeId]` — rating, review count, progress chart, active markets, bet CTAs
+- `/market/[address]` — progress chart with target line, pools, countdown, bet panel
+- `/portfolio` — positions, claimable winnings, PnL
+- `/leaderboard` — top traders by PnL
+
+### Key Hooks
+
+- `usePlaceDetails(placeId)` — Google Places API metadata
+- `useSnapshotHistory(placeId)` — Supabase time-series for charts
+
+### InterwovenKit Setup
+
+```tsx
+const pinitiaChain = {
+  id: "pinitia-1", name: "Pinitia",
+  nativeCurrency: { name: "MIN", symbol: "MIN", decimals: 18 },
+  rpcUrls: { default: { http: ["http://localhost:8545"] } },
+};
+
+const wagmiConfig = createConfig({
+  connectors: [initiaPrivyWalletConnector],
+  chains: [pinitiaChain],
+  transports: { [pinitiaChain.id]: http() },
+});
+
+// Auto-signing: covers betLong, betShort, claim
+<InterwovenKitProvider {...TESTNET} defaultChainId="pinitia-1" enableAutoSign>
 ```
 
-RLS: public read, write via service role key only.
+### Endpoints
 
-## Environment Variables
+Local EVM JSON-RPC: `http://localhost:8545` | Rollup RPC: `localhost:26657` | REST: `localhost:1317`
+L1 testnet: `rpc.testnet.initia.xyz` / `rest.testnet.initia.xyz` | Faucet: `faucet.testnet.initia.xyz`
+
+### Frontend Env Vars
 
 ```bash
-# Oracle
-ORACLE_PRIVATE_KEY=
-MINITIA_RPC_URL=
-PLACE_ORACLE_ADDRESS=
-MARKET_FACTORY_ADDRESS=
-GOOGLE_PLACES_API_KEY=
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+NEXT_PUBLIC_MINITIA_RPC_URL=http://localhost:8545
+NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0x5427521eDb77281468C21510A5Fa96d1c52EDb41
+NEXT_PUBLIC_CHAIN_ID=pinitia-1
+NEXT_PUBLIC_SUPABASE_URL=https://xfsdxweuomaohfkahhai.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
+
+### Dev Command
+
+```bash
+cd frontend && npm i && npm run dev   # localhost:3000
+```
+
+## Common Issues
+
+- **Auto-sign not working**: `defaultChainId` must be `pinitia-1` (Cosmos ID), not EVM numeric ID
+- **eth_getLogs empty**: Local RPC may lag — poll with retry
+- **Chart gaps**: Oracle downtime — connect points with lines, don't break
+- **No venue photos**: Use placeholder in VenueCard
+
+## Submission Checklist
+
+- [x] Contracts deployed on pinitia-1
+- [x] Supabase schema + RLS
+- [ ] 10–15 markets seeded across multiple venues
+- [ ] Wallet connection + auto-signing (3+ bets without popup)
+- [ ] Oracle resolves at least 1 market
+- [ ] Progress chart with snapshot history
+- [ ] `.initia/submission.json`, README with submission section
+- [ ] Demo video (1-3 min): connect → auto-sign → browse → bet → resolve → claim
+- [ ] Public GitHub repo
