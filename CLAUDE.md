@@ -18,10 +18,10 @@ Frontend reads: Places API (metadata), Supabase (history), chain via viem/wagmi 
 
 ## Deployed Contracts (pinitia-1)
 
-| Contract | Address |
-|---|---|
+| Contract      | Address                                      |
+| ------------- | -------------------------------------------- |
 | MarketFactory | `0x5427521eDb77281468C21510A5Fa96d1c52EDb41` |
-| PlaceOracle | `0xA126fBe076B879d64Cea037e862392409379C474` |
+| PlaceOracle   | `0xA126fBe076B879d64Cea037e862392409379C474` |
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 
@@ -81,6 +81,106 @@ Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), 
 
 Stack: Next.js 14 App Router, TypeScript, Tailwind, Recharts, TanStack Query. Wallet: @initia/interwovenkit-react. Chain: viem + wagmi.
 
+### UI Framework: Neobrutalism Components
+
+Use [neobrutalism.dev](https://www.neobrutalism.dev/) — a shadcn/ui-based component library with neobrutalist styling. This gives Pinitia a bold, high-contrast, playful aesthetic that fits the prediction market vibe.
+
+#### Setup
+
+1. **Initialize shadcn** (CSS variables mode, not utility classes):
+
+   ```bash
+   pnpm dlx shadcn@latest init
+   ```
+
+   - When prompted, choose **CSS variables** (not utility classes — neobrutalism only supports CSS variables mode).
+   - The `baseColor` choice doesn't matter — it gets overwritten.
+
+2. **Install `tw-animate-css`** (replaces deprecated `tailwindcss-animate`):
+
+   ```bash
+   pnpm add tw-animate-css
+   ```
+
+3. **Replace `globals.css`**: Delete existing content and paste the neobrutalism styling from [neobrutalism.dev/styling](https://www.neobrutalism.dev/styling). Pick the color scheme there (blue, green, orange, violet, or custom). The styling page has a "Copy" button.
+
+4. **Install components via CLI** — each component has a CLI command on its docs page:
+   ```bash
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/button.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/card.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/badge.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/dialog.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/tabs.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/progress.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/input.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/table.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/tooltip.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/skeleton.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/alert.json
+   pnpm dlx shadcn@latest add https://neobrutalism.dev/r/select.json
+   ```
+   Components without a CLI command: copy from the neobrutalism docs page into `components/ui/`.
+
+#### Neobrutalism Design Principles (enforce in all UI work)
+
+- **Hard black borders** (`border-2 border-border`) on cards, buttons, inputs, containers
+- **Bold box shadows** — offset shadows (e.g. `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`) that give a "stacked paper" look
+- **Flat, saturated colors** — use the CSS variables from the neobrutalism theme (`--primary`, `--secondary`, `--accent`). No gradients.
+- **No rounded corners or minimal rounding** — prefer `rounded-none` or `rounded-sm`, never `rounded-xl` or `rounded-full` on containers
+- **High contrast** — dark borders on light backgrounds, bold text, clear visual hierarchy
+- **Chunky interactive states** — buttons translate on hover/active (`translate-x-[2px] translate-y-[2px]` + shadow removal) for a "press" effect
+- **Typography** — bold headings, generous font sizes, no thin/light weights
+
+#### Component Mapping for Pinitia
+
+| UI Element             | Neobrutalism Component                | Notes                                                   |
+| ---------------------- | ------------------------------------- | ------------------------------------------------------- |
+| Venue cards on `/`     | `Card`                                | Image card variant if venue has photo, else placeholder |
+| LONG/SHORT bet buttons | `Button` (default + reverse variants) | Green for LONG, red/orange for SHORT                    |
+| Market info panels     | `Card` + `Badge`                      | Badge for market type (VELOCITY/RATING), status         |
+| Bet amount input       | `Input`                               | With inline token symbol                                |
+| Pool distribution      | `Progress`                            | Styled as LONG vs SHORT bar                             |
+| Market countdown       | `Badge` or custom                     | Bold countdown with border                              |
+| Position tables        | `Table`                               | Portfolio page                                          |
+| Market status          | `Alert`                               | For resolved/pending/active states                      |
+| Tab navigation         | `Tabs`                                | Venue page: Overview / Markets / History                |
+| Dialogs/modals         | `Dialog`                              | Bet confirmation, claim winnings                        |
+| Loading states         | `Skeleton`                            | Neobrutalism skeleton with hard borders                 |
+| Dropdowns              | `Select`                              | Market filters                                          |
+| Tooltips               | `Tooltip`                             | Explain market mechanics on hover                       |
+
+#### Color Recommendations
+
+Choose a bold primary from the neobrutalism styling page. Suggested:
+
+- **Blue** — clean, fintech feel
+- **Orange** — energetic, prediction-market vibe (recommended)
+
+Supplement with semantic overrides:
+
+- LONG positions: `bg-green-300` with `border-2 border-black`
+- SHORT positions: `bg-red-300` with `border-2 border-black`
+- Resolved/won: `bg-yellow-200`
+
+#### Fonts
+
+Neobrutalism pairs well with bold, geometric sans-serifs. Recommended:
+
+- **Space Grotesk** (headings) + **Inter** (body) — both on Google Fonts
+- Or just **Inter** everywhere at heavier weights (600-800 for headings)
+
+Add to `layout.tsx`:
+
+```tsx
+import { Space_Grotesk, Inter } from "next/font/google";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-heading",
+});
+const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
+```
+
 ### Pages
 
 - `/` — curated venue cards (no search bar)
@@ -93,25 +193,6 @@ Stack: Next.js 14 App Router, TypeScript, Tailwind, Recharts, TanStack Query. Wa
 
 - `usePlaceDetails(placeId)` — Google Places API metadata
 - `useSnapshotHistory(placeId)` — Supabase time-series for charts
-
-### InterwovenKit Setup
-
-```tsx
-const pinitiaChain = {
-  id: "pinitia-1", name: "Pinitia",
-  nativeCurrency: { name: "MIN", symbol: "MIN", decimals: 18 },
-  rpcUrls: { default: { http: ["http://localhost:8545"] } },
-};
-
-const wagmiConfig = createConfig({
-  connectors: [initiaPrivyWalletConnector],
-  chains: [pinitiaChain],
-  transports: { [pinitiaChain.id]: http() },
-});
-
-// Auto-signing: covers betLong, betShort, claim
-<InterwovenKitProvider {...TESTNET} defaultChainId="pinitia-1" enableAutoSign>
-```
 
 ### Endpoints
 
@@ -141,6 +222,8 @@ cd frontend && npm i && npm run dev   # localhost:3000
 - **eth_getLogs empty**: Local RPC may lag — poll with retry
 - **Chart gaps**: Oracle downtime — connect points with lines, don't break
 - **No venue photos**: Use placeholder in VenueCard
+- **Neobrutalism components not styled**: Ensure `globals.css` uses the neobrutalism styling (not default shadcn). The CSS variables mode must be selected during shadcn init.
+- **Shadow/border mismatch**: All interactive elements must have `border-2 border-border` — don't mix rounded and flat styles
 
 ## Submission Checklist
 

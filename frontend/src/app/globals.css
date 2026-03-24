@@ -1,0 +1,65 @@
+@import "tw-animate-css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 50 100% 97%;
+    --foreground: 0 0% 0%;
+    --card: 50 100% 97%;
+    --card-foreground: 0 0% 0%;
+    --popover: 50 100% 97%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 30 100% 55%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 50 100% 75%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 50 50% 90%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 30 100% 65%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 0%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 30 100% 55%;
+    --radius: 0.25rem;
+
+    --main: 50 100% 85%;
+    --main-foreground: 0 0% 0%;
+    --overlay: 0 0% 0%;
+    --overlay-foreground: 50 100% 97%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+}
+
+@layer utilities {
+  .shadow-neo {
+    box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+  }
+  .shadow-neo-sm {
+    box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+  }
+  .shadow-neo-lg {
+    box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
+  }
+  .shadow-neo-pressed {
+    box-shadow: 1px 1px 0px 0px rgba(0, 0, 0, 1);
+  }
+  .neo-press {
+    @apply translate-x-[3px] translate-y-[3px] shadow-neo-pressed;
+  }
+}
