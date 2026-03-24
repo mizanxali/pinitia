@@ -1,30 +1,28 @@
 import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
-import { MarketFactoryABI } from "./abis.js";
+import { MarketFactoryABI, MarketABI } from "./abis.js";
 import { config } from "./config.js";
-import { writeSnapshot, writePlace } from "./db.js";
+import { writeSnapshot, writePlace, getLatestSnapshot } from "./db.js";
 import { fetchPlaceDetails } from "./fetcher.js";
 
-interface VenueMarket {
-  type: "VELOCITY" | "RATING";
-  target: number;
-  resolveDate: string; // ISO date e.g. "2026-04-10"
+interface VenueEntry {
+  placeId: string;
 }
 
-interface Venue {
-  placeId: string;
-  markets: VenueMarket[];
-}
+const VELOCITY_TARGETS = [20, 50];
+const RATING_OFFSETS = [0.1, 0.2];
+const MAX_RATING_SCALED = 500; // 5.00 * 100
+const RESOLVE_DATE = "2026-04-10"; // all markets resolve on this date
 
 function isoToUnixUtcMidnight(iso: string): number {
-  const date = new Date(`${iso}T00:00:00Z`);
-  return Math.floor(date.getTime() / 1000);
+  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 1000);
 }
 
 async function seed() {
-  const venues: Venue[] = JSON.parse(
+  const venues: VenueEntry[] = JSON.parse(
     readFileSync(new URL("./venues.json", import.meta.url), "utf-8"),
   );
+  const placeIds = venues.map((v) => v.placeId);
 
   const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
   const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
@@ -34,86 +32,91 @@ async function seed() {
     wallet,
   );
 
-  for (const venue of venues) {
-    console.log(`\nProcessing venue: ${venue.placeId}`);
+  const resolveTimestamp = isoToUnixUtcMidnight(RESOLVE_DATE);
+  console.log(`Resolve date: ${RESOLVE_DATE} (${resolveTimestamp})`);
+  console.log(`Venues: ${placeIds.length}`);
+  console.log();
 
-    // Fetch current data from Places API (includes name, address, photo)
-    const data = await fetchPlaceDetails(venue.placeId);
+  for (const placeId of placeIds) {
+    console.log(`\n=== ${placeId} ===`);
+
+    // Fetch current data from Places API
+    const data = await fetchPlaceDetails(placeId);
     console.log(
       `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount}`,
     );
 
-    // Write place metadata to Supabase
-    await writePlace(venue.placeId, data.name, data.address, data.photoUrl);
-    console.log(`  Place upserted`);
-
-    // Write initial snapshot to Supabase
-    await writeSnapshot(venue.placeId, data.rating, data.reviewCount);
-    console.log(`  Snapshot written`);
+    // Upsert place metadata + write snapshot
+    await writePlace(placeId, data.name, data.address, data.photoUrl);
+    await writeSnapshot(placeId, data.rating, data.reviewCount);
+    console.log("  Place + snapshot saved");
 
     // Check existing markets for idempotency
-    const existingMarkets: string[] = await factory.getMarketsByPlace(
-      venue.placeId,
-    );
+    const existingMarkets: string[] = await factory.getMarketsByPlace(placeId);
+    const existingKeys = new Set<string>();
 
-    for (const m of venue.markets) {
-      const resolveTimestamp = isoToUnixUtcMidnight(m.resolveDate);
+    for (const addr of existingMarkets) {
+      const market = new ethers.Contract(addr, MarketABI, provider);
+      const info = await market.getMarketInfo();
+      const type = Number(info[0]) === 0 ? "V" : "R";
+      const target = Number(info[2]);
+      const resolve = Number(info[3]);
+      existingKeys.add(`${type}-${target}-${resolve}`);
+    }
 
-      // Check if market already exists (same venue/type/date)
-      let alreadyExists = false;
-      if (existingMarkets.length > 0) {
-        const MarketABI = [
-          "function getMarketInfo() view returns (uint8, string, uint256, uint256, uint256, uint256, uint256, uint256, uint256, bool)",
-        ];
-        for (const addr of existingMarkets) {
-          const market = new ethers.Contract(addr, MarketABI, provider);
-          const info = await market.getMarketInfo();
-          const existingType = Number(info[0]);
-          const existingResolveDate = Number(info[3]);
-          const expectedType = m.type === "VELOCITY" ? 0 : 1;
-          if (
-            existingType === expectedType &&
-            existingResolveDate === resolveTimestamp
-          ) {
-            alreadyExists = true;
-            break;
-          }
-        }
+    // --- Velocity markets ---
+    for (const target of VELOCITY_TARGETS) {
+      const key = `V-${target}-${resolveTimestamp}`;
+      if (existingKeys.has(key)) {
+        console.log(`  SKIP VELOCITY target=${target} — already exists`);
+        continue;
       }
 
-      if (alreadyExists) {
+      const tx = await factory.createVelocityMarket(
+        placeId,
+        target,
+        resolveTimestamp,
+        data.reviewCount,
+      );
+      const receipt = await tx.wait();
+      console.log(
+        `  VELOCITY target=+${target} reviews | tx: ${receipt.hash.slice(0, 20)}...`,
+      );
+    }
+
+    // --- Rating markets ---
+    // Use latest snapshot rating (from Supabase or freshly written)
+    const snapshot = await getLatestSnapshot(placeId);
+    const currentRating = snapshot?.rating ?? data.rating;
+
+    for (const offset of RATING_OFFSETS) {
+      const rawTarget = currentRating + offset;
+      const cappedTarget = Math.min(rawTarget, 5.0);
+      const scaledTarget = Math.round(cappedTarget * 100); // e.g. 4.3 -> 430
+
+      if (scaledTarget > MAX_RATING_SCALED) continue; // skip if somehow > 5.00
+
+      const key = `R-${scaledTarget}-${resolveTimestamp}`;
+      if (existingKeys.has(key)) {
         console.log(
-          `  Skipping ${m.type} market (resolveDate=${m.resolveDate}) — already exists`,
+          `  SKIP RATING target=${cappedTarget.toFixed(2)} — already exists`,
         );
         continue;
       }
 
-      if (m.type === "VELOCITY") {
-        const tx = await factory.createVelocityMarket(
-          venue.placeId,
-          m.target,
-          resolveTimestamp,
-          data.reviewCount,
-        );
-        const receipt = await tx.wait();
-        console.log(
-          `  Created VELOCITY market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`,
-        );
-      } else {
-        const tx = await factory.createRatingMarket(
-          venue.placeId,
-          m.target,
-          resolveTimestamp,
-        );
-        const receipt = await tx.wait();
-        console.log(
-          `  Created RATING market: target=${m.target} resolveDate=${m.resolveDate} tx=${receipt.hash}`,
-        );
-      }
+      const tx = await factory.createRatingMarket(
+        placeId,
+        scaledTarget,
+        resolveTimestamp,
+      );
+      const receipt = await tx.wait();
+      console.log(
+        `  RATING   target>=${cappedTarget.toFixed(2)} (${scaledTarget}) | tx: ${receipt.hash.slice(0, 20)}...`,
+      );
     }
   }
 
-  console.log("\nSeed complete.");
+  console.log("\n=== Seed complete ===");
 }
 
 seed().catch((err) => {

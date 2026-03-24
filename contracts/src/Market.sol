@@ -72,7 +72,15 @@ contract Market {
     function resolve(uint256 _finalRating, uint256 _finalReviewCount) external onlyOracle {
         require(!resolved, "Already resolved");
         require(block.timestamp >= resolveDate, "Too early");
+        _resolve(_finalRating, _finalReviewCount);
+    }
 
+    function forceResolve(uint256 _finalRating, uint256 _finalReviewCount) external onlyOracle {
+        require(!resolved, "Already resolved");
+        _resolve(_finalRating, _finalReviewCount);
+    }
+
+    function _resolve(uint256 _finalRating, uint256 _finalReviewCount) internal {
         resolved = true;
         finalRating = _finalRating;
         finalReviewCount = _finalReviewCount;

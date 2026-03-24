@@ -2,6 +2,7 @@ export const PlaceOracleABI = [
   "function postPlaceData(string placeId, uint256 rating, uint256 reviewCount)",
   "function batchPost(string[] placeIds, uint256[] ratings, uint256[] reviewCounts)",
   "function setOracle(address oracle)",
+  "function forceResolveMarket(address market, uint256 rating, uint256 reviewCount)",
   "event PlaceDataPosted(string placeId, uint256 rating, uint256 reviewCount)",
 ];
 

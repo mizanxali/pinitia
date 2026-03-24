@@ -1,9 +1,77 @@
 [
   {
-    "placeId": "ChIJ-a6pEckVrjsRVXIhjVbVQ5o",
-    "markets": [
-      { "type": "VELOCITY", "target": 50, "resolveDate": "2026-04-10" },
-      { "type": "RATING", "target": 420, "resolveDate": "2026-04-15" }
-    ]
+    "placeId": "ChIJjfOyQ3cWrjsRz_TvsEoOQ0A",
+    "name": "Skyye",
+    "category": "restaurant"
+  },
+  {
+    "placeId": "ChIJ-3cMy7oWrjsRu8up6eYKXaI",
+    "name": "Truffles - Indiranagar",
+    "category": "restaurant"
+  },
+  {
+    "placeId": "ChIJ80IECk8UrjsRqCffDjE09lw",
+    "name": "Dyu Art Cafe",
+    "category": "cafe"
+  },
+  {
+    "placeId": "ChIJy9Ry9GcUrjsRlAT3TuW94lE",
+    "name": "The Hole In The Wall Cafe",
+    "category": "cafe"
+  },
+  {
+    "placeId": "ChIJ37SqAqoWrjsR0104e_dU3fY",
+    "name": "Lazy Suzy",
+    "category": "restaurant"
+  },
+  {
+    "placeId": "ChIJc0JAFaUWrjsRRXSXJPX7YFo",
+    "name": "Toit",
+    "category": "brewery"
+  },
+  {
+    "placeId": "ChIJt62F1qwTrjsRzahuMZAxxYM",
+    "name": "Ironhill Bengaluru",
+    "category": "brewery"
+  },
+  {
+    "placeId": "ChIJq_MCZPQRrjsRR82tjOEMQpg",
+    "name": "BLR Brewing Co - Whitefield",
+    "category": "brewery"
+  },
+  {
+    "placeId": "ChIJqwEtA1ETrjsRsgt6bQ-rEaM",
+    "name": "Long Boat Brewing Co.",
+    "category": "brewery"
+  },
+  {
+    "placeId": "ChIJw68tewgVrjsRnVufs2uL3bY",
+    "name": "The Grid - Gaming Arena (Koramangala)",
+    "category": "gaming"
+  },
+  {
+    "placeId": "ChIJoYLYT7EXrjsR7PQJljBoSAw",
+    "name": "The Grid - Gaming Arena (New BEL Rd)",
+    "category": "gaming"
+  },
+  {
+    "placeId": "ChIJQ1XqWTYVrjsR5b-exOFv8Wc",
+    "name": "Loco Bear - The Ultimate Entertainment Hub",
+    "category": "gaming"
+  },
+  {
+    "placeId": "ChIJK3WK06kXrjsRtJJUPxlNE4A",
+    "name": "Museum of Art & Photography (MAP)",
+    "category": "museum"
+  },
+  {
+    "placeId": "ChIJzRxhID4WrjsRMW9WwS2aSzo",
+    "name": "Karnataka Chitrakala Parishath",
+    "category": "gallery"
+  },
+  {
+    "placeId": "ChIJqZQybIEWrjsRezNLL4Ju2Gk",
+    "name": "National Gallery of Modern Art",
+    "category": "gallery"
   }
 ]

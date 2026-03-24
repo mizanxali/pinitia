@@ -65,6 +65,16 @@ contract PlaceOracle {
         }
     }
 
+    function forceResolveMarket(
+        address marketAddr,
+        uint256 rating,
+        uint256 reviewCount
+    ) external onlyOwner {
+        Market market = Market(marketAddr);
+        require(!market.resolved(), "Already resolved");
+        market.forceResolve(rating, reviewCount);
+    }
+
     function setOracle(address _oracle) external onlyOwner {
         oracle = _oracle;
     }

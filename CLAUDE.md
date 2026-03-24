@@ -20,8 +20,8 @@ Frontend reads: Supabase (history), chain via viem (markets/positions), Interwov
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0x5427521eDb77281468C21510A5Fa96d1c52EDb41` |
-| PlaceOracle   | `0xA126fBe076B879d64Cea037e862392409379C474` |
+| MarketFactory | `0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4` |
+| PlaceOracle   | `0x02b5a81a88A7596852EC72dd398166387d2f1b86` |
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 
@@ -106,7 +106,7 @@ Neobrutalism style: hard black borders (`border-2 border-border`), offset box sh
 
 ```
 NEXT_PUBLIC_MINITIA_RPC_URL=http://localhost:8545
-NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0x5427521eDb77281468C21510A5Fa96d1c52EDb41
+NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4
 NEXT_PUBLIC_CHAIN_ID=pinitia-1
 NEXT_PUBLIC_SUPABASE_URL=https://xfsdxweuomaohfkahhai.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>

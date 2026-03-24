@@ -6,7 +6,9 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx src/index.ts",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "force-resolve": "tsx src/force-resolve.ts",
+    "seed-bets": "tsx src/seed-bets.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
