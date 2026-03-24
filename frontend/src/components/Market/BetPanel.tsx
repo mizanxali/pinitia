@@ -28,12 +28,14 @@ export default function BetPanel({ market }: BetPanelProps) {
       if (isAutoSignEnabled) {
         await autoSign.disable(CHAIN_ID);
       } else {
+        // @ts-expect-error - autoSign.enable type broken in initia sdk
         await autoSign.enable(CHAIN_ID, {
           permissions: ["/minievm.evm.v1.MsgCall"],
         });
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.message.includes("authorization not found")) {
+        // @ts-expect-error - autoSign.enable type broken in initia sdk
         await autoSign.enable(CHAIN_ID, {
           permissions: ["/minievm.evm.v1.MsgCall"],
         });

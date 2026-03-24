@@ -5,7 +5,8 @@ import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { shortenAddress } from "@/lib/utils";
 
 export default function Navbar() {
-  const { initiaAddress, openConnect, openWallet } = useInterwovenKit();
+  const { initiaAddress, username, openConnect, openWallet } =
+    useInterwovenKit();
 
   return (
     <nav className="sticky top-0 z-50 border-b-2 border-border bg-background">
@@ -47,7 +48,7 @@ export default function Navbar() {
               className="flex items-center gap-2 border-2 border-border bg-main px-4 py-2 font-body text-sm font-bold shadow-neo-sm transition-all hover:neo-press"
             >
               <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-              {shortenAddress(initiaAddress)}
+              {username ? username : shortenAddress(initiaAddress)}
             </button>
           ) : (
             <button

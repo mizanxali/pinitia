@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { MINITIA_RPC_URL } from "@/lib/contracts";
 import { formatGas, shortenAddress } from "@/lib/utils";
+import { useUsernameQuery } from "@initia/interwovenkit-react";
 
 const client = createPublicClient({
   transport: http(MINITIA_RPC_URL),
@@ -16,6 +17,50 @@ interface LeaderboardEntry {
   totalClaimed: bigint;
   pnl: bigint;
   bets: number;
+}
+
+function LeaderboardRow({
+  entry,
+  rank,
+}: {
+  entry: LeaderboardEntry;
+  rank: number;
+}) {
+  const { data: username } = useUsernameQuery(entry.address);
+
+  return (
+    <tr
+      className={`${rank % 2 === 0 ? "bg-background" : "bg-muted/30"} ${
+        rank < 3 ? "font-bold" : ""
+      }`}
+    >
+      <td className="px-4 py-3 font-heading text-sm font-extrabold">
+        {rank + 1}
+      </td>
+      <td className="px-4 py-3 font-body text-sm font-bold">
+        {username ? username : shortenAddress(entry.address)}
+      </td>
+      <td className="px-4 py-3 text-right font-body text-sm">{entry.bets}</td>
+      <td className="px-4 py-3 text-right font-body text-sm">
+        {formatGas(entry.totalBet)}
+      </td>
+      <td className="px-4 py-3 text-right font-body text-sm">
+        {formatGas(entry.totalClaimed)}
+      </td>
+      <td
+        className={`px-4 py-3 text-right font-body text-sm font-extrabold ${
+          entry.pnl > 0n
+            ? "text-green-700"
+            : entry.pnl < 0n
+              ? "text-red-600"
+              : ""
+        }`}
+      >
+        {entry.pnl > 0n ? "+" : ""}
+        {formatGas(entry.pnl)} GAS
+      </td>
+    </tr>
+  );
 }
 
 export default function LeaderboardContent() {
@@ -147,40 +192,7 @@ export default function LeaderboardContent() {
             </thead>
             <tbody>
               {leaderboard.map((entry, i) => (
-                <tr
-                  key={entry.address}
-                  className={`${i % 2 === 0 ? "bg-background" : "bg-muted/30"} ${
-                    i < 3 ? "font-bold" : ""
-                  }`}
-                >
-                  <td className="px-4 py-3 font-heading text-sm font-extrabold">
-                    {i === 0 ? "1" : i === 1 ? "2" : i === 2 ? "3" : i + 1}
-                  </td>
-                  <td className="px-4 py-3 font-body text-sm font-bold">
-                    {shortenAddress(entry.address)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-body text-sm">
-                    {entry.bets}
-                  </td>
-                  <td className="px-4 py-3 text-right font-body text-sm">
-                    {formatGas(entry.totalBet)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-body text-sm">
-                    {formatGas(entry.totalClaimed)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-body text-sm font-extrabold ${
-                      entry.pnl > 0n
-                        ? "text-green-700"
-                        : entry.pnl < 0n
-                          ? "text-red-600"
-                          : ""
-                    }`}
-                  >
-                    {entry.pnl > 0n ? "+" : ""}
-                    {formatGas(entry.pnl)} GAS
-                  </td>
-                </tr>
+                <LeaderboardRow key={entry.address} entry={entry} rank={i} />
               ))}
             </tbody>
           </table>

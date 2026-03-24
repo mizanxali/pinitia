@@ -16,6 +16,42 @@ import {
   shortenAddress,
 } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useUsernameQuery } from "@initia/interwovenkit-react";
+
+function BetRow({
+  bet,
+  isYou,
+}: {
+  bet: { user: string; isLong: boolean; amount: bigint };
+  isYou: boolean;
+}) {
+  const { data: username } = useUsernameQuery(bet.user);
+
+  return (
+    <tr className="border-b border-border last:border-b-0">
+      <td className="px-3 py-2 font-body text-sm font-bold">
+        {username ? username : shortenAddress(bet.user)}
+        {isYou && (
+          <span className="ml-2 border-2 border-border bg-blue-200 px-1.5 py-0.5 text-xs font-bold">
+            YOU
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2 font-body text-sm font-bold">
+        <span
+          className={`border-2 border-border px-2 py-0.5 text-xs font-bold ${
+            bet.isLong ? "bg-green-200" : "bg-red-200"
+          }`}
+        >
+          {bet.isLong ? "LONG" : "SHORT"}
+        </span>
+      </td>
+      <td className="px-3 py-2 text-right font-body text-sm font-bold">
+        {formatGas(bet.amount)} GAS
+      </td>
+    </tr>
+  );
+}
 
 export default function MarketDetail({ address }: { address: string }) {
   const marketAddress = address as `0x${string}`;
@@ -252,32 +288,14 @@ export default function MarketDetail({ address }: { address: string }) {
               </thead>
               <tbody>
                 {allBets.map((bet, i) => (
-                  <tr
+                  <BetRow
                     key={i}
-                    className="border-b border-border last:border-b-0"
-                  >
-                    <td className="px-3 py-2 font-body text-sm font-bold">
-                      {shortenAddress(bet.user)}
-                      {hexAddress &&
-                        bet.user.toLowerCase() === hexAddress.toLowerCase() && (
-                          <span className="ml-2 border-2 border-border bg-blue-200 px-1.5 py-0.5 text-xs font-bold">
-                            YOU
-                          </span>
-                        )}
-                    </td>
-                    <td className="px-3 py-2 font-body text-sm font-bold">
-                      <span
-                        className={`border-2 border-border px-2 py-0.5 text-xs font-bold ${
-                          bet.isLong ? "bg-green-200" : "bg-red-200"
-                        }`}
-                      >
-                        {bet.isLong ? "LONG" : "SHORT"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right font-body text-sm font-bold">
-                      {formatGas(bet.amount)} GAS
-                    </td>
-                  </tr>
+                    bet={bet}
+                    isYou={
+                      !!hexAddress &&
+                      bet.user.toLowerCase() === hexAddress.toLowerCase()
+                    }
+                  />
                 ))}
               </tbody>
             </table>
