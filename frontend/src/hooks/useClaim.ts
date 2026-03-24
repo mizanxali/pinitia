@@ -20,8 +20,8 @@ export function useClaim(marketAddress: `0x${string}`) {
 
     await requestTxBlock({
       chainId: CHAIN_ID,
-      autoSign: true,
-      feeDenom: "GAS",
+      // autoSign: true, TODO: fix
+      // feeDenom: "GAS", TODO: fix
       messages: [
         {
           typeUrl: "/minievm.evm.v1.MsgCall",

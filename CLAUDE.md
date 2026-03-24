@@ -115,7 +115,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>
 ### Dev Command
 
 ```bash
-cd frontend && npm i && npm run dev   # localhost:3000
+cd frontend && bun install && bun run dev   # localhost:3000
 ```
 
 ## Oracle Pipeline (hourly, already running)
