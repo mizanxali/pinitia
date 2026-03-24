@@ -6,17 +6,16 @@ import { useAllBets } from "@/hooks/useAllPositions";
 import { useSnapshotHistory } from "@/hooks/useSnapshotHistory";
 import { useClaim } from "@/hooks/useClaim";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
-import BetPanel from "@/components/BetPanel";
-import SnapshotChart from "@/components/SnapshotChart";
+import BetPanel from "@/components/Market/BetPanel";
+import SnapshotChart from "@/components/Market/SnapshotChart";
 import Link from "next/link";
 import {
   formatGas,
   formatRating,
-  getCountdown,
   getMarketStatus,
   shortenAddress,
 } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function MarketDetail({ address }: { address: string }) {
   const marketAddress = address as `0x${string}`;
@@ -30,6 +29,15 @@ export default function MarketDetail({ address }: { address: string }) {
   const { data: snapshots } = useSnapshotHistory(market?.placeId ?? "");
   const { data: allBets } = useAllBets(marketAddress);
   const [claiming, setClaiming] = useState(false);
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Math.floor(Date.now() / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   if (isLoading || !market) {
     return (
@@ -45,6 +53,13 @@ export default function MarketDetail({ address }: { address: string }) {
   const chartMetric = market.marketType === 0 ? "review_count" : "rating";
   const targetLine =
     market.marketType === 1 ? Number(market.target) / 100 : undefined;
+  const diff = Number(market.resolveDate) - now;
+  const countdown =
+    diff <= 0
+      ? "Ended"
+      : diff >= 86400
+        ? `${Math.floor(diff / 86400)}d ${Math.floor((diff % 86400) / 3600)}h ${Math.floor((diff % 3600) / 60)}m ${diff % 60}s`
+        : `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m ${diff % 60}s`;
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -87,9 +102,7 @@ export default function MarketDetail({ address }: { address: string }) {
           >
             {status.toUpperCase()}
           </span>
-          <span className="font-body text-sm font-bold">
-            {getCountdown(Number(market.resolveDate))}
-          </span>
+          <span className="font-body text-sm font-bold">{countdown}</span>
         </div>
 
         <h1 className="mt-3 font-heading text-2xl font-extrabold">

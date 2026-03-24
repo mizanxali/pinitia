@@ -1,4 +1,4 @@
-import VenueDetail from "@/components/VenueDetail";
+import VenueDetail from "@/components/Venue/VenueDetail";
 
 export default async function VenuePage({
   params,

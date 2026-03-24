@@ -73,9 +73,12 @@ export default function BetPanel({ market }: BetPanelProps) {
 
       {/* Amount input */}
       <div className="mt-4">
-        <label className="font-body text-sm font-bold">Amount (GAS)</label>
+        <label htmlFor="amount" className="font-body text-sm font-bold">
+          Amount (GAS)
+        </label>
         <div className="mt-1 flex border-2 border-border">
           <input
+            id="amount"
             type="number"
             step="0.01"
             min="0"

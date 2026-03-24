@@ -1,4 +1,4 @@
-import VenueGrid from "@/components/VenueGrid";
+import VenueGrid from "@/components/Home/VenueGrid";
 
 export default function HomePage() {
   return (
@@ -8,8 +8,8 @@ export default function HomePage() {
           Prediction Markets on Places
         </h1>
         <p className="mt-2 font-body text-lg text-muted-foreground">
-          Bet LONG or SHORT on Google Maps venue metrics. Winners split the
-          losers&apos; pool.
+          Go LONG or SHORT on Google Maps ratings of your favorite places.
+          Winners split the losers&apos; pool.
         </p>
       </div>
 

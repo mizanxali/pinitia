@@ -2,7 +2,7 @@
 
 import { useActiveMarkets } from "@/hooks/useMarkets";
 import { usePlaces } from "@/hooks/usePlaces";
-import VenueCard from "@/components/VenueCard";
+import VenueCard from "@/components/Home/VenueCard";
 
 export default function VenueGrid() {
   const { data: markets, isLoading: marketsLoading } = useActiveMarkets();

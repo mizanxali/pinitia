@@ -3,10 +3,9 @@
 import { usePlaceMarkets } from "@/hooks/useMarkets";
 import { useSnapshotHistory } from "@/hooks/useSnapshotHistory";
 import { usePlace } from "@/hooks/usePlaces";
-import MarketCard from "@/components/MarketCard";
-import SnapshotChart from "@/components/SnapshotChart";
+import MarketCard from "@/components/Venue/MarketCard";
+import SnapshotChart from "@/components/Market/SnapshotChart";
 import Link from "next/link";
-import { useState } from "react";
 
 export default function VenueDetail({ placeId }: { placeId: string }) {
   const decodedPlaceId = decodeURIComponent(placeId);
@@ -14,9 +13,6 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
     usePlaceMarkets(decodedPlaceId);
   const { data: snapshots } = useSnapshotHistory(decodedPlaceId);
   const { data: place } = usePlace(decodedPlaceId);
-  const [tab, setTab] = useState<"overview" | "markets" | "history">(
-    "overview",
-  );
 
   const latestSnapshot = snapshots?.at(-1);
 
@@ -65,26 +61,8 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex border-2 border-border">
-        {(["overview", "markets", "history"] as const).map((t) => (
-          <button
-            type="button"
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 px-4 py-2 font-body text-sm font-bold transition-colors ${
-              tab === t
-                ? "bg-primary text-primary-foreground"
-                : "bg-background hover:bg-muted"
-            } ${t !== "overview" ? "border-l-2 border-border" : ""}`}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {tab === "overview" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
           <div>
             <h2 className="mb-3 font-heading text-xl font-extrabold">
               Rating History
@@ -98,9 +76,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
             <SnapshotChart snapshots={snapshots ?? []} metric="review_count" />
           </div>
         </div>
-      )}
 
-      {tab === "markets" && (
         <div>
           <h2 className="mb-3 font-heading text-xl font-extrabold">
             Active Markets
@@ -119,63 +95,14 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
               No markets for this venue yet
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               {markets?.map((m) => (
                 <MarketCard key={m.address} market={m} />
               ))}
             </div>
           )}
         </div>
-      )}
-
-      {tab === "history" && (
-        <div>
-          <h2 className="mb-3 font-heading text-xl font-extrabold">
-            Snapshot History
-          </h2>
-          {!snapshots || snapshots.length === 0 ? (
-            <div className="border-2 border-border bg-muted p-6 text-center font-body text-sm font-bold text-muted-foreground">
-              No snapshot data available
-            </div>
-          ) : (
-            <div className="border-2 border-border">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-border bg-main">
-                    <th className="px-4 py-2 text-left font-heading text-xs font-extrabold">
-                      Date
-                    </th>
-                    <th className="px-4 py-2 text-right font-heading text-xs font-extrabold">
-                      Rating
-                    </th>
-                    <th className="px-4 py-2 text-right font-heading text-xs font-extrabold">
-                      Reviews
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...snapshots].reverse().map((s, i) => (
-                    <tr
-                      key={s.id}
-                      className={i % 2 === 0 ? "bg-background" : "bg-muted/30"}
-                    >
-                      <td className="px-4 py-2 font-body text-xs font-semibold">
-                        {new Date(s.fetched_at).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-right font-body text-xs font-bold">
-                        {s.rating}
-                      </td>
-                      <td className="px-4 py-2 text-right font-body text-xs font-bold">
-                        {s.review_count}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import MarketDetail from "@/components/MarketDetail";
+import MarketDetail from "@/components/Market/MarketDetail";
 
 export default async function MarketPage({
   params,
