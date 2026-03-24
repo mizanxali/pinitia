@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { usePlaceMarkets } from "@/hooks/useMarkets";
 import { useSnapshotHistory } from "@/hooks/useSnapshotHistory";
-import { CURATED_VENUES } from "@/lib/venues";
+import { usePlace } from "@/hooks/usePlaces";
 import MarketCard from "@/components/MarketCard";
 import SnapshotChart from "@/components/SnapshotChart";
 import Link from "next/link";
@@ -15,11 +15,11 @@ export default function VenuePage() {
   const { data: markets, isLoading: marketsLoading } =
     usePlaceMarkets(decodedPlaceId);
   const { data: snapshots } = useSnapshotHistory(decodedPlaceId);
+  const { data: place } = usePlace(decodedPlaceId);
   const [tab, setTab] = useState<"overview" | "markets" | "history">(
     "overview",
   );
 
-  const venue = CURATED_VENUES.find((v) => v.placeId === decodedPlaceId);
   const latestSnapshot = snapshots?.at(-1);
 
   return (
@@ -33,16 +33,24 @@ export default function VenuePage() {
 
       <div className="mb-6 border-2 border-border bg-card p-6 shadow-neo">
         <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 items-center justify-center border-2 border-border bg-main">
-            <span className="text-3xl">📍</span>
+          <div className="flex h-16 w-16 items-center justify-center border-2 border-border bg-main overflow-hidden">
+            {place?.photo_url ? (
+              <img
+                src={place.photo_url}
+                alt={place.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-3xl">📍</span>
+            )}
           </div>
           <div>
             <h1 className="font-heading text-3xl font-extrabold">
-              {venue?.name ?? decodedPlaceId}
+              {place?.name ?? decodedPlaceId}
             </h1>
-            {venue?.address && (
+            {place?.address && (
               <p className="mt-1 font-body text-sm text-muted-foreground">
-                {venue.address}
+                {place.address}
               </p>
             )}
             {latestSnapshot && (

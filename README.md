@@ -337,7 +337,6 @@ SUPABASE_URL=                 # Supabase project URL
 SUPABASE_SERVICE_ROLE_KEY=    # Supabase service role key (oracle writes)
 
 # Frontend
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=   # Google Maps JS API key (for Places API venue metadata)
 NEXT_PUBLIC_MINITIA_RPC_URL=       # EVM JSON-RPC endpoint
 NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=
 NEXT_PUBLIC_CHAIN_ID=pinitia-1

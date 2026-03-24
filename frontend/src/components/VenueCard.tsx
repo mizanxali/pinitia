@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { type Venue } from "@/lib/venues";
 import { type MarketInfo } from "@/hooks/useMarkets";
+
+export interface Venue {
+  placeId: string;
+  name: string;
+  address: string;
+  photoUrl?: string;
+}
 
 interface VenueCardProps {
   venue: Venue;
@@ -20,8 +26,16 @@ export default function VenueCard({ venue, markets }: VenueCardProps) {
   return (
     <Link href={`/venue/${venue.placeId}`}>
       <div className="group cursor-pointer border-2 border-border bg-card p-5 shadow-neo transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-neo-pressed">
-        <div className="mb-3 flex h-32 items-center justify-center border-2 border-border bg-main">
-          <span className="font-heading text-4xl">📍</span>
+        <div className="mb-3 flex h-32 items-center justify-center border-2 border-border bg-main overflow-hidden">
+          {venue.photoUrl ? (
+            <img
+              src={venue.photoUrl}
+              alt={venue.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="font-heading text-4xl">📍</span>
+          )}
         </div>
         <h3 className="font-heading text-lg font-extrabold leading-tight">
           {venue.name}

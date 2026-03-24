@@ -1,15 +1,23 @@
 "use client";
 
 import { useActiveMarkets } from "@/hooks/useMarkets";
-import { CURATED_VENUES } from "@/lib/venues";
+import { usePlaces } from "@/hooks/usePlaces";
 import VenueCard from "@/components/VenueCard";
 
 export default function HomePage() {
-  const { data: markets, isLoading } = useActiveMarkets();
+  const { data: markets, isLoading: marketsLoading } = useActiveMarkets();
+  const { data: places, isLoading: placesLoading } = usePlaces();
 
-  const venueMarkets = CURATED_VENUES.map((venue) => ({
-    venue,
-    markets: (markets ?? []).filter((m) => m.placeId === venue.placeId),
+  const isLoading = marketsLoading || placesLoading;
+
+  const venueMarkets = (places ?? []).map((place) => ({
+    venue: {
+      placeId: place.place_id,
+      name: place.name,
+      address: place.address ?? "",
+      photoUrl: place.photo_url ?? undefined,
+    },
+    markets: (markets ?? []).filter((m) => m.placeId === place.place_id),
   }));
 
   return (

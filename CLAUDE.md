@@ -53,7 +53,7 @@ Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. In
 
 | Route               | Description                                                                |
 | ------------------- | -------------------------------------------------------------------------- |
-| `/`                 | Curated venue cards grid (venues defined in `lib/venues.ts`)               |
+| `/`                 | Curated venue cards grid (venues loaded from Supabase `places` table)      |
 | `/venue/[placeId]`  | Venue detail — rating/review charts, active markets, snapshot history      |
 | `/market/[address]` | Market detail — progress chart, pool bars, bet panel, user position, claim |
 | `/portfolio`        | User positions across all markets, claimable winnings                      |
@@ -70,6 +70,8 @@ Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. In
 | `useBet`             | InterwovenKit | `placeBet(isLong, amount)` via `requestTxBlock` with `MsgCall` |
 | `useClaim`           | InterwovenKit | `claim()` via `requestTxBlock` with `MsgCall`                  |
 | `useSnapshotHistory` | Supabase      | Time-series snapshots for charts                               |
+| `usePlaces`          | Supabase      | All places (name, address, photo) for homepage                 |
+| `usePlace`           | Supabase      | Single place metadata by placeId                               |
 
 ### Transaction Pattern (EVM via InterwovenKit)
 
@@ -86,7 +88,6 @@ All read calls use a standalone `publicClient` created with `createPublicClient(
 - `lib/abi.ts` — `MarketFactoryABI`, `MarketABI` (viem-compatible const arrays)
 - `lib/supabase.ts` — Supabase client + `PlaceSnapshot` type
 - `lib/utils.ts` — `cn`, `shortenAddress`, `formatGas` (wei→human), `formatRating` (scaled→decimal), `getCountdown`, `getMarketStatus`
-- `lib/venues.ts` — curated venue list with placeIds
 
 ### Components
 
@@ -125,6 +126,8 @@ cd frontend && npm i && npm run dev   # localhost:3000
 
 ## Supabase
 
+Table: `places` — columns: `place_id` (text, PK), `name` (text), `address` (text), `photo_url` (text), `created_at` (timestamptz). RLS: public read. Upserted by seed script via `fetchPlaceDetails()` from Google Places API (displayName, formattedAddress, photos).
+
 Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), `review_count` (int), `fetched_at` (timestamptz). RLS: public read, service role write.
 
 ## Common Issues
@@ -135,7 +138,7 @@ Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), 
 - **eth_getLogs empty**: Local RPC may lag — poll with retry.
 - **Shadow/border mismatch**: All interactive elements must have `border-2 border-border` — don't mix rounded and flat styles.
 - **Chart gaps**: Oracle downtime — connect points with lines, don't break
-- **No venue photos**: Use placeholder in VenueCard
+- **No venue photos**: Photo URLs are fetched from Google Places API during seeding and stored in `places.photo_url`. Falls back to 📍 placeholder if null.
 
 ## Submission Checklist
 

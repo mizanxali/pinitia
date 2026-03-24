@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
 import { MarketFactoryABI } from "./abis.js";
 import { config } from "./config.js";
-import { writeSnapshot } from "./db.js";
-import { fetchPlaceData } from "./fetcher.js";
+import { writeSnapshot, writePlace } from "./db.js";
+import { fetchPlaceDetails } from "./fetcher.js";
 
 interface VenueMarket {
   type: "VELOCITY" | "RATING";
@@ -37,11 +37,15 @@ async function seed() {
   for (const venue of venues) {
     console.log(`\nProcessing venue: ${venue.placeId}`);
 
-    // Fetch current data from Places API
-    const data = await fetchPlaceData(venue.placeId);
+    // Fetch current data from Places API (includes name, address, photo)
+    const data = await fetchPlaceDetails(venue.placeId);
     console.log(
-      `  Current: rating=${data.rating}, reviews=${data.reviewCount}`,
+      `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount}`,
     );
+
+    // Write place metadata to Supabase
+    await writePlace(venue.placeId, data.name, data.address, data.photoUrl);
+    console.log(`  Place upserted`);
 
     // Write initial snapshot to Supabase
     await writeSnapshot(venue.placeId, data.rating, data.reviewCount);

@@ -27,6 +27,27 @@ export async function writeSnapshot(
     throw new Error(`Supabase insert failed for ${placeId}: ${error.message}`);
 }
 
+export async function writePlace(
+  placeId: string,
+  name: string,
+  address: string,
+  photoUrl: string | null,
+) {
+  const { error } = await supabase.from("places").upsert(
+    {
+      place_id: placeId,
+      name,
+      address,
+      photo_url: photoUrl,
+    },
+    { onConflict: "place_id" },
+  );
+  if (error)
+    throw new Error(
+      `Supabase places upsert failed for ${placeId}: ${error.message}`,
+    );
+}
+
 export async function getLatestSnapshot(
   placeId: string,
 ): Promise<PlaceSnapshot | null> {
