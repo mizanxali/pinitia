@@ -17,7 +17,9 @@ const marketAddress = process.argv[2];
 const side = (process.argv[3] || "long").toLowerCase();
 
 if (!marketAddress) {
-  console.error("Usage: npx tsx src/force-resolve.ts <MARKET_ADDRESS> [long|short]");
+  console.error(
+    "Usage: npx tsx src/force-resolve.ts <MARKET_ADDRESS> [long|short]",
+  );
   process.exit(1);
 }
 
@@ -28,7 +30,11 @@ if (side !== "long" && side !== "short") {
 
 const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
 const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
-const oracle = new ethers.Contract(config.placeOracleAddress, PlaceOracleABI, wallet);
+const oracle = new ethers.Contract(
+  config.placeOracleAddress,
+  PlaceOracleABI,
+  wallet,
+);
 const market = new ethers.Contract(marketAddress, MarketABI, provider);
 
 async function main() {
@@ -40,7 +46,18 @@ async function main() {
 
   // Read market info
   const info = await market.getMarketInfo();
-  const [marketType, placeId, target, , longPool, shortPool, initialReviewCount, , , resolved] = info;
+  const [
+    marketType,
+    placeId,
+    target,
+    ,
+    longPool,
+    shortPool,
+    initialReviewCount,
+    ,
+    ,
+    resolved,
+  ] = info;
 
   if (resolved) {
     console.error("ERROR: Market is already resolved.");
@@ -51,7 +68,9 @@ async function main() {
   if (isVelocity) {
     console.log(`Type:        VELOCITY (review count gain >= ${target})`);
   } else {
-    console.log(`Type:        RATING (final rating >= ${Number(target) / 100})`);
+    console.log(
+      `Type:        RATING (final rating >= ${Number(target) / 100})`,
+    );
   }
   console.log(`Place ID:    ${placeId}`);
   console.log(`Long Pool:   ${ethers.formatEther(longPool)} GAS`);
@@ -86,7 +105,11 @@ async function main() {
 
   // Send forceResolveMarket tx
   console.log("Sending forceResolveMarket tx...");
-  const tx = await oracle.forceResolveMarket(marketAddress, rating, reviewCount);
+  const tx = await oracle.forceResolveMarket(
+    marketAddress,
+    rating,
+    reviewCount,
+  );
   console.log(`Tx hash: ${tx.hash}`);
 
   const receipt = await tx.wait();
@@ -101,9 +124,13 @@ async function main() {
     console.log("=== Market Resolved! ===");
     console.log(`Result: ${longWins ? "LONG" : "SHORT"} wins`);
     console.log();
-    console.log("Go to the market page on the frontend to see results and claim winnings.");
+    console.log(
+      "Go to the market page on the frontend to see results and claim winnings.",
+    );
   } else {
-    console.error("WARNING: Market still shows as unresolved. Check the tx for errors.");
+    console.error(
+      "WARNING: Market still shows as unresolved. Check the tx for errors.",
+    );
   }
 }
 

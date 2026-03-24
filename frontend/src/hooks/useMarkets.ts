@@ -21,6 +21,7 @@ export interface MarketInfo {
   finalRating: bigint;
   finalReviewCount: bigint;
   resolved: boolean;
+  longWins: boolean;
 }
 
 async function fetchMarketInfo(
@@ -43,6 +44,17 @@ async function fetchMarketInfo(
     boolean,
   ];
 
+  const resolved = result[9];
+
+  let longWins = false;
+  if (resolved) {
+    longWins = (await client.readContract({
+      address: marketAddress,
+      abi: MarketABI,
+      functionName: "longWins",
+    })) as boolean;
+  }
+
   return {
     address: marketAddress,
     marketType: result[0],
@@ -54,7 +66,8 @@ async function fetchMarketInfo(
     initialReviewCount: result[6],
     finalRating: result[7],
     finalReviewCount: result[8],
-    resolved: result[9],
+    resolved,
+    longWins,
   };
 }
 

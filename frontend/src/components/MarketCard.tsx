@@ -89,14 +89,8 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
         </div>
 
         {market.resolved && (
-          <div
-            className={`mt-2 border-2 border-border p-2 text-center text-xs font-bold ${
-              market.resolved ? "bg-yellow-200" : ""
-            }`}
-          >
-            {market.resolved
-              ? `Resolved — ${market.resolved ? "LONG WINS" : "SHORT WINS"}`
-              : ""}
+          <div className="mt-2 border-2 border-border bg-yellow-200 p-2 text-center text-xs font-bold">
+            {`Resolved — ${market.longWins ? "LONG WINS" : "SHORT WINS"}`}
           </div>
         )}
       </div>

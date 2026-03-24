@@ -25,7 +25,11 @@ for (let i = 0; i < args.length; i++) {
 
 const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
 const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
-const factory = new ethers.Contract(config.marketFactoryAddress, MarketFactoryABI, provider);
+const factory = new ethers.Contract(
+  config.marketFactoryAddress,
+  MarketFactoryABI,
+  provider,
+);
 
 function randBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -79,9 +83,13 @@ async function main() {
 
     const isVelocity = Number(marketType) === 0;
     if (isVelocity) {
-      console.log(`  Type: VELOCITY | Place: ${placeId} | Target: +${target} reviews`);
+      console.log(
+        `  Type: VELOCITY | Place: ${placeId} | Target: +${target} reviews`,
+      );
     } else {
-      console.log(`  Type: RATING   | Place: ${placeId} | Target: >= ${Number(target) / 100}`);
+      console.log(
+        `  Type: RATING   | Place: ${placeId} | Target: >= ${Number(target) / 100}`,
+      );
     }
 
     const numBets = randBetween(1, maxBetsPerMarket);
@@ -100,9 +108,13 @@ async function main() {
         await tx.wait();
         totalBets++;
         totalSpent += value;
-        console.log(`    [${i}] ${side} ${amount} GAS | tx: ${tx.hash.slice(0, 20)}...`);
+        console.log(
+          `    [${i}] ${side} ${amount} GAS | tx: ${tx.hash.slice(0, 20)}...`,
+        );
       } catch (err: any) {
-        console.log(`    [${i}] FAILED: ${side} ${amount} GAS — ${err.message?.slice(0, 60)}`);
+        console.log(
+          `    [${i}] FAILED: ${side} ${amount} GAS — ${err.message?.slice(0, 60)}`,
+        );
       }
     }
 
@@ -110,7 +122,9 @@ async function main() {
     const updated = await market.getMarketInfo();
     const longPool = updated[4];
     const shortPool = updated[5];
-    console.log(`  Pools -> LONG: ${ethers.formatEther(longPool)} GAS | SHORT: ${ethers.formatEther(shortPool)} GAS`);
+    console.log(
+      `  Pools -> LONG: ${ethers.formatEther(longPool)} GAS | SHORT: ${ethers.formatEther(shortPool)} GAS`,
+    );
     console.log();
   }
 

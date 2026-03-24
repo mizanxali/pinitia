@@ -158,8 +158,12 @@ export default function MarketPage() {
               </p>
               <p className="mt-1 font-body text-sm font-bold">
                 Result:{" "}
-                <span className="text-green-700">
-                  {market.resolved ? "LONG WINS" : "SHORT WINS"}
+                <span
+                  className={
+                    market.longWins ? "text-green-700" : "text-red-700"
+                  }
+                >
+                  {market.longWins ? "LONG WINS" : "SHORT WINS"}
                 </span>
               </p>
             </div>
