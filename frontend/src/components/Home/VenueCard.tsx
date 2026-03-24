@@ -46,12 +46,12 @@ export default function VenueCard({ venue, markets }: VenueCardProps) {
         <div className="mt-3 flex items-center gap-2">
           {activeCount > 0 && (
             <span className="border-2 border-border bg-green-300 px-2 py-0.5 text-xs font-bold">
-              {activeCount} active
+              {activeCount} markets active
             </span>
           )}
           {totalPool > 0n && (
             <span className="border-2 border-border bg-secondary px-2 py-0.5 text-xs font-bold">
-              {poolDisplay} GAS
+              {poolDisplay} GAS pool
             </span>
           )}
           {markets.length === 0 && (

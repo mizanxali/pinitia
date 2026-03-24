@@ -33,6 +33,12 @@ export default function Navbar() {
           >
             Leaderboard
           </Link>
+          <Link
+            href="/how-it-works"
+            className="font-body text-sm font-semibold hover:underline"
+          >
+            How It Works
+          </Link>
 
           {initiaAddress ? (
             <button
