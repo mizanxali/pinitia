@@ -42,10 +42,15 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
 
 5. **Seed test bets** (optional — populate markets with random bets):
    ```bash
-   cd oracle && bunx tsx src/seed-bets.ts --bets 5 --max-amount 2
+   cd oracle && bun run seed-bets -- --bets 5 --max-amount 2
    ```
 
-6. **Force-resolve a market** (optional — manually resolve for testing):
+6. **Quick test** (optional — create 6 markets that resolve in 5 min, with bets):
    ```bash
-   cd oracle && bunx tsx src/force-resolve.ts <market-address> long|short
+   cd oracle && bun run seed-quick
+   ```
+
+7. **Force-resolve a market** (optional — manually resolve for testing):
+   ```bash
+   cd oracle && bun run force-resolve <market-address> long|short
    ```

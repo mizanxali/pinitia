@@ -2,23 +2,23 @@
  * Force-resolve a market before its expiry date.
  *
  * Usage:
- *   npx tsx src/force-resolve.ts <MARKET_ADDRESS> [long|short]
+ *   npx tsx src/scripts/force-resolve.ts <MARKET_ADDRESS> [long|short]
  *
  * Examples:
- *   npx tsx src/force-resolve.ts 0x1234...abcd long
- *   npx tsx src/force-resolve.ts 0x1234...abcd short
- *   npx tsx src/force-resolve.ts 0x1234...abcd          # defaults to long
+ *   npx tsx src/scripts/force-resolve.ts 0x1234...abcd long
+ *   npx tsx src/scripts/force-resolve.ts 0x1234...abcd short
+ *   npx tsx src/scripts/force-resolve.ts 0x1234...abcd          # defaults to long
  */
 import { ethers } from "ethers";
-import { config } from "./config.js";
-import { PlaceOracleABI, MarketABI } from "./abis.js";
+import { config } from "../utils/config.js";
+import { PlaceOracleABI, MarketABI } from "../utils/abis.js";
 
 const marketAddress = process.argv[2];
 const side = (process.argv[3] || "long").toLowerCase();
 
 if (!marketAddress) {
   console.error(
-    "Usage: npx tsx src/force-resolve.ts <MARKET_ADDRESS> [long|short]",
+    "Usage: npx tsx src/scripts/force-resolve.ts <MARKET_ADDRESS> [long|short]",
   );
   process.exit(1);
 }

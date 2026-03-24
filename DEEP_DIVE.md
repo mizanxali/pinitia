@@ -257,10 +257,14 @@ cd contracts && forge test
 bun run oracle:seed
 
 # Populate markets with test bets
-cd oracle && bunx tsx src/seed-bets.ts --bets 5 --max-amount 2
+cd oracle && bun run seed-bets -- --bets 5 --max-amount 2
+
+# Quick test: create 6 markets that resolve in 5 min, with bets pre-seeded
+cd oracle && bun run seed-quick
+cd oracle && bun run seed-quick -- --minutes 10  # custom resolve window
 
 # Force-resolve a market (for testing)
-cd oracle && bunx tsx src/force-resolve.ts <market-address> long|short
+cd oracle && bun run force-resolve <market-address> long|short
 ```
 
 ---
@@ -353,27 +357,35 @@ Read calls use a standalone viem `publicClient` — no wallet extension required
 
 ```
 pinitia/
-├── contracts/           # Solidity smart contracts (Foundry)
+├── contracts/              # Solidity smart contracts (Foundry)
 │   ├── src/
 │   │   ├── MarketFactory.sol
 │   │   ├── Market.sol
 │   │   └── PlaceOracle.sol
 │   ├── script/Deploy.s.sol
 │   └── test/
-├── frontend/            # Next.js 15 app
+├── frontend/               # Next.js 15 app
 │   └── src/
-│       ├── app/         # Pages (home, venue, market, portfolio, leaderboard)
-│       ├── components/  # UI components
-│       ├── hooks/       # Data fetching (useMarkets, useBet, useClaim, etc.)
-│       └── lib/         # Config, ABIs, Supabase client, utilities
-├── oracle/              # Oracle service
+│       ├── app/            # Pages (home, venue, market, portfolio, leaderboard)
+│       ├── components/     # UI components
+│       ├── hooks/          # Data fetching (useMarkets, useBet, useClaim, etc.)
+│       └── lib/            # Config, ABIs, Supabase client, utilities
+├── oracle/                 # Oracle service
 │   └── src/
-│       ├── index.ts     # Hourly cron
-│       ├── fetcher.ts   # Google Places API
-│       ├── poster.ts    # On-chain posting
-│       ├── db.ts        # Supabase writes
-│       ├── seed.ts      # Market creation
-│       └── venues.json  # Curated venue list
+│       ├── index.ts        # Hourly cron entry point
+│       ├── utils/          # Shared modules
+│       │   ├── config.ts   # Environment config
+│       │   ├── abis.ts     # Contract ABIs (ethers human-readable)
+│       │   ├── fetcher.ts  # Google Places API client
+│       │   ├── poster.ts   # On-chain posting via ethers.js
+│       │   └── db.ts       # Supabase reads/writes
+│       ├── scripts/        # CLI scripts
+│       │   ├── seed.ts     # Seed markets across all venues
+│       │   ├── seed-bets.ts    # Seed random bets on active markets
+│       │   ├── seed-quick.ts   # Quick markets (5-min resolve) + bets
+│       │   └── force-resolve.ts # Force-resolve a market for testing
+│       └── data/
+│           └── venues.json # Curated venue list
 └── CLAUDE.md
 ```
 

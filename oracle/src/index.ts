@@ -1,7 +1,11 @@
 import cron from "node-cron";
-import { getLatestSnapshot, writeSnapshot } from "./db.js";
-import { fetchPlaceData } from "./fetcher.js";
-import { getActiveMarkets, getMarketInfo, postOnChain } from "./poster.js";
+import { getLatestSnapshot, writeSnapshot } from "./utils/db.js";
+import { fetchPlaceData } from "./utils/fetcher.js";
+import {
+  getActiveMarkets,
+  getMarketInfo,
+  postOnChain,
+} from "./utils/poster.js";
 
 async function run() {
   console.log(`[${new Date().toISOString()}] Oracle run started`);

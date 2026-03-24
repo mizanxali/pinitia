@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
-import { MarketFactoryABI, MarketABI } from "./abis.js";
-import { config } from "./config.js";
-import { writeSnapshot, writePlace, getLatestSnapshot } from "./db.js";
-import { fetchPlaceDetails } from "./fetcher.js";
+import { MarketFactoryABI, MarketABI } from "../utils/abis.js";
+import { config } from "../utils/config.js";
+import { writeSnapshot, writePlace, getLatestSnapshot } from "../utils/db.js";
+import { fetchPlaceDetails } from "../utils/fetcher.js";
 
 interface VenueEntry {
   placeId: string;
@@ -20,7 +20,7 @@ function isoToUnixUtcMidnight(iso: string): number {
 
 async function seed() {
   const venues: VenueEntry[] = JSON.parse(
-    readFileSync(new URL("./venues.json", import.meta.url), "utf-8"),
+    readFileSync(new URL("../data/venues.json", import.meta.url), "utf-8"),
   );
   const placeIds = venues.map((v) => v.placeId);
 

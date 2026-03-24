@@ -2,14 +2,14 @@
  * Seed random LONG/SHORT bets on all active markets using the oracle wallet.
  *
  * Usage:
- *   npx tsx src/seed-bets.ts                        # 1-3 bets per market, 0.01-0.5 GAS
- *   npx tsx src/seed-bets.ts --bets 5               # up to 5 bets per market
- *   npx tsx src/seed-bets.ts --max-amount 2         # up to 2 GAS per bet
- *   npx tsx src/seed-bets.ts --bets 4 --max-amount 1
+ *   npx tsx src/scripts/seed-bets.ts                        # 1-3 bets per market, 0.01-0.5 GAS
+ *   npx tsx src/scripts/seed-bets.ts --bets 5               # up to 5 bets per market
+ *   npx tsx src/scripts/seed-bets.ts --max-amount 2         # up to 2 GAS per bet
+ *   npx tsx src/scripts/seed-bets.ts --bets 4 --max-amount 1
  */
 import { ethers } from "ethers";
-import { config } from "./config.js";
-import { MarketFactoryABI, MarketABI } from "./abis.js";
+import { config } from "../utils/config.js";
+import { MarketFactoryABI, MarketABI } from "../utils/abis.js";
 
 // Parse CLI args
 const args = process.argv.slice(2);
