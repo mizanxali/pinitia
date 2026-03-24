@@ -22,14 +22,10 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    bun run install:all
    ```
 
-2. **Configure environment**: Copy `oracle/.env.example` to `oracle/.env` and fill in your Oracle private key, Minitia RPC URL, contract addresses, Google Places API key, and Supabase credentials. For the frontend, create `frontend/.env.local` with:
-
-   ```
-   NEXT_PUBLIC_MINITIA_RPC_URL=<your-rpc>
-   NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4
-   NEXT_PUBLIC_CHAIN_ID=pinitia-1
-   NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+2. **Configure environment**: Copy the example env files and fill in your values:
+   ```bash
+   cp oracle/.env.example oracle/.env
+   cp frontend/.env.example frontend/.env.local
    ```
 
 3. **Seed markets** (if starting fresh):
@@ -42,4 +38,14 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    ```bash
    bun run frontend:dev    # Next.js frontend on localhost:3000
    bun run oracle:dev      # Oracle cron (hourly Google Places fetch + on-chain posting)
+   ```
+
+5. **Seed test bets** (optional — populate markets with random bets):
+   ```bash
+   cd oracle && bunx tsx src/seed-bets.ts --bets 5 --max-amount 2
+   ```
+
+6. **Force-resolve a market** (optional — manually resolve for testing):
+   ```bash
+   cd oracle && bunx tsx src/force-resolve.ts <market-address> long|short
    ```
