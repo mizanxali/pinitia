@@ -11,7 +11,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 border-b-2 border-border bg-background">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="font-heading text-2xl font-extrabold">
-          PINITIA
+          📍 PINITIA
         </Link>
 
         <div className="flex items-center gap-4">

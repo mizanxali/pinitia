@@ -96,9 +96,6 @@ export default function MarketPage() {
             ? `Will this venue gain ${market.target.toString()} reviews?`
             : `Will the rating reach ${formatRating(market.target)}?`}
         </h1>
-        <p className="mt-1 font-body text-sm text-muted-foreground">
-          Place ID: {market.placeId}
-        </p>
 
         {/* Stats grid */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
