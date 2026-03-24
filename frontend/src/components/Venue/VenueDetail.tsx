@@ -15,6 +15,8 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
   const { data: place } = usePlace(decodedPlaceId);
 
   const latestSnapshot = snapshots?.at(-1);
+  const activeMarkets = markets?.filter((m) => !m.resolved) ?? [];
+  const resolvedMarkets = markets?.filter((m) => m.resolved) ?? [];
 
   return (
     <div>
@@ -90,13 +92,37 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
                 />
               ))}
             </div>
-          ) : markets?.length === 0 ? (
+          ) : activeMarkets.length === 0 ? (
             <div className="border-2 border-border bg-muted p-6 text-center font-body text-sm font-bold text-muted-foreground">
-              No markets for this venue yet
+              No active markets for this venue
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {markets?.map((m) => (
+              {activeMarkets.map((m) => (
+                <MarketCard key={m.address} market={m} />
+              ))}
+            </div>
+          )}
+
+          <h2 className="mb-3 mt-6 font-heading text-xl font-extrabold">
+            Resolved Markets
+          </h2>
+          {marketsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse border-2 border-border bg-muted"
+                />
+              ))}
+            </div>
+          ) : resolvedMarkets.length === 0 ? (
+            <div className="border-2 border-border bg-muted p-6 text-center font-body text-sm font-bold text-muted-foreground">
+              No resolved markets for this venue yet
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {resolvedMarkets.map((m) => (
                 <MarketCard key={m.address} market={m} />
               ))}
             </div>

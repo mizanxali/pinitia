@@ -20,6 +20,8 @@ export function useBet(marketAddress: `0x${string}`) {
 
     await requestTxBlock({
       chainId: CHAIN_ID,
+      autoSign: true,
+      feeDenom: "GAS",
       messages: [
         {
           typeUrl: "/minievm.evm.v1.MsgCall",

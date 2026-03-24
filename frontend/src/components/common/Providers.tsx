@@ -34,6 +34,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           {...TESTNET}
           defaultChainId={CHAIN_ID}
           customChain={pinitiaChain}
+          enableAutoSign={true}
         >
           {children}
         </InterwovenKitProvider>

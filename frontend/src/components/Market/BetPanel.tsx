@@ -1,21 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useBet } from "@/hooks/useBet";
 import { type MarketInfo } from "@/hooks/useMarkets";
 import { formatGas, getMarketStatus } from "@/lib/utils";
+import { CHAIN_ID } from "@/lib/contracts";
 
 interface BetPanelProps {
   market: MarketInfo;
 }
 
 export default function BetPanel({ market }: BetPanelProps) {
-  const { initiaAddress, openConnect } = useInterwovenKit();
+  const { initiaAddress, openConnect, autoSign } = useInterwovenKit();
   const { placeBet } = useBet(market.address);
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoSignLoading, setAutoSignLoading] = useState(false);
+
+  const isAutoSignEnabled = autoSign?.isEnabledByChain?.[CHAIN_ID] ?? false;
+
+  const toggleAutoSign = useCallback(async () => {
+    if (!autoSign) return;
+    setAutoSignLoading(true);
+    try {
+      if (isAutoSignEnabled) {
+        await autoSign.disable(CHAIN_ID);
+      } else {
+        await autoSign.enable(CHAIN_ID, {
+          permissions: ["/minievm.evm.v1.MsgCall"],
+        });
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes("authorization not found")) {
+        await autoSign.enable(CHAIN_ID, {
+          permissions: ["/minievm.evm.v1.MsgCall"],
+        });
+      }
+    } finally {
+      setAutoSignLoading(false);
+    }
+  }, [autoSign, isAutoSignEnabled]);
 
   const status = getMarketStatus(market.resolved, Number(market.resolveDate));
   const canBet = status === "active" && !!initiaAddress;
@@ -43,7 +69,31 @@ export default function BetPanel({ market }: BetPanelProps) {
 
   return (
     <div className="border-2 border-border bg-card p-5 shadow-neo">
-      <h3 className="font-heading text-lg font-extrabold">Place Your Bet</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-heading text-lg font-extrabold">Place Your Bet</h3>
+
+        {initiaAddress && (
+          <button
+            type="button"
+            onClick={toggleAutoSign}
+            disabled={autoSignLoading}
+            className={`flex items-center gap-1.5 border-2 border-border px-2.5 py-1 font-body text-xs font-bold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50 ${
+              isAutoSignEnabled ? "bg-green-300" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                isAutoSignEnabled ? "bg-green-600" : "bg-muted-foreground"
+              }`}
+            />
+            {autoSignLoading
+              ? "..."
+              : isAutoSignEnabled
+                ? "Auto-Sign ON"
+                : "Auto-Sign OFF"}
+          </button>
+        )}
+      </div>
 
       {/* Pool visualization */}
       <div className="mt-4">
