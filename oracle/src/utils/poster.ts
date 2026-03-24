@@ -63,8 +63,85 @@ export async function getMarketInfo(marketAddress: string) {
   return {
     marketType: Number(info.marketType),
     placeId: info.placeId,
-    target: info.target,
+    target: BigInt(info.target),
     resolveDate: Number(info.resolveDate),
+    initialReviewCount: BigInt(info.initialReviewCount),
     resolved: info.resolved,
   };
+}
+
+/**
+ * Check whether a resolved market was won by LONG.
+ */
+export async function getMarketResult(marketAddress: string): Promise<boolean> {
+  const market = new ethers.Contract(marketAddress, MarketABI, provider);
+  return await market.longWins();
+}
+
+const FOLLOW_UP_RESOLVE_OFFSET = 60 * 60; // 1 hour
+const VELOCITY_TARGET_BUMP = 10n;
+const RATING_TARGET_BUMP = 10n; // scaled 1e2, so 10 = 0.1
+const MAX_RATING_SCALED = 500n;
+
+/**
+ * Create a follow-up market after resolution.
+ * - LONG wins (target achieved): bump target (+10 velocity, +0.1 rating)
+ * - SHORT wins (target not achieved): keep same target
+ * New market resolves in 1 hour.
+ */
+export async function createFollowUpMarket(
+  marketAddress: string,
+  info: { marketType: number; placeId: string; target: bigint; initialReviewCount: bigint },
+  longWins: boolean,
+  currentReviewCount: number,
+) {
+  const resolveDate = Math.floor(Date.now() / 1000) + FOLLOW_UP_RESOLVE_OFFSET;
+  const isVelocity = info.marketType === 0;
+
+  let newTarget = info.target;
+  if (longWins) {
+    newTarget = isVelocity
+      ? info.target + VELOCITY_TARGET_BUMP
+      : info.target + RATING_TARGET_BUMP;
+  }
+
+  // Cap rating target at 5.00 (500 scaled)
+  if (!isVelocity && newTarget > MAX_RATING_SCALED) {
+    newTarget = MAX_RATING_SCALED;
+  }
+
+  try {
+    let tx: ethers.TransactionResponse;
+    if (isVelocity) {
+      tx = await marketFactory.createVelocityMarket(
+        info.placeId,
+        newTarget,
+        resolveDate,
+        currentReviewCount,
+      );
+    } else {
+      tx = await marketFactory.createRatingMarket(
+        info.placeId,
+        newTarget,
+        resolveDate,
+      );
+    }
+    const receipt = await tx.wait();
+    const log = receipt?.logs.find(
+      (l: any) => l.fragment?.name === "MarketCreated",
+    );
+    const newAddr = (log as any)?.args?.[0] ?? "unknown";
+    const typeLabel = isVelocity ? "VELOCITY" : "RATING";
+    const action = longWins ? "bumped" : "same";
+    console.log(
+      `  Follow-up: ${typeLabel} target=${newTarget.toString()} (${action}) resolves=${new Date(resolveDate * 1000).toISOString()} → ${newAddr}`,
+    );
+  } catch (err: any) {
+    // Max markets per place reached — skip silently
+    if (err.message?.includes("Max markets")) {
+      console.log(`  Follow-up skipped for ${info.placeId}: max markets per place reached`);
+    } else {
+      console.error(`  Follow-up failed for ${info.placeId}:`, err.message?.slice(0, 100));
+    }
+  }
 }

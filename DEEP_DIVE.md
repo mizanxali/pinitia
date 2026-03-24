@@ -99,6 +99,7 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
 - Hourly cron fetching Google Places API data
 - Writes snapshots to Supabase for frontend charts
 - Posts on-chain data via PlaceOracle when markets are past their resolve date
+- Auto-creates follow-up markets after resolution: if target was achieved, bumps target (+10 velocity, +0.1 rating); if not, keeps same target. Follow-ups resolve in 1 hour.
 - Seeding scripts for creating initial markets and test bets
 
 **Supabase** — Off-chain data layer
@@ -173,8 +174,8 @@ Chain: **pinitia-1** (Initia EVM Minitia)
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4` |
-| PlaceOracle   | `0x02b5a81a88A7596852EC72dd398166387d2f1b86` |
+| MarketFactory | `0x9EabdE24897cf45c3Df84b62d099D0aeA4dB4687` |
+| PlaceOracle   | `0x53e8a9Ac2aCa9c8b0764aB149A5119A18c62B950` |
 
 **Wiring**: MarketFactory's oracle → PlaceOracle contract. PlaceOracle's oracle → Gas Station EOA. Markets created by the factory inherit PlaceOracle as their oracle.
 

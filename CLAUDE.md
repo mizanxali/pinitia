@@ -20,8 +20,8 @@ Frontend reads: Supabase (history), chain via viem (markets/positions), Interwov
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0xBf1907170CB123DEEC0fD4D2854F8F24a18C40A4` |
-| PlaceOracle   | `0x02b5a81a88A7596852EC72dd398166387d2f1b86` |
+| MarketFactory | `0x9EabdE24897cf45c3Df84b62d099D0aeA4dB4687` |
+| PlaceOracle   | `0x53e8a9Ac2aCa9c8b0764aB149A5119A18c62B950` |
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 
@@ -76,6 +76,7 @@ Neobrutalism style: hard black borders (`border-2 border-border`), offset box sh
 1. Reads active place IDs from MarketFactory on-chain
 2. Fetches from Google Places API, writes to Supabase `place_snapshots`
 3. If past resolveDate: posts on-chain via `PlaceOracle.postPlaceData()` which auto-resolves eligible markets
+4. Auto-creates follow-up markets: target achieved → bump (+10 velocity, +0.1 rating); not achieved → same target. Resolves in 1 hour. Skips silently if max markets per place reached.
 
 ## Supabase
 
