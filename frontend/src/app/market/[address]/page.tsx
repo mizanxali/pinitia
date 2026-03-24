@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMarketInfo } from "@/hooks/useMarkets";
 import { useUserPosition } from "@/hooks/useUserPosition";
+import { useAllBets } from "@/hooks/useAllPositions";
 import { useSnapshotHistory } from "@/hooks/useSnapshotHistory";
 import { useClaim } from "@/hooks/useClaim";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
@@ -14,6 +15,7 @@ import {
   formatRating,
   getCountdown,
   getMarketStatus,
+  shortenAddress,
 } from "@/lib/utils";
 import { useState } from "react";
 
@@ -28,6 +30,7 @@ export default function MarketPage() {
   );
   const { claim } = useClaim(marketAddress);
   const { data: snapshots } = useSnapshotHistory(market?.placeId ?? "");
+  const { data: allBets } = useAllBets(marketAddress);
   const [claiming, setClaiming] = useState(false);
 
   if (isLoading || !market) {
@@ -216,6 +219,62 @@ export default function MarketPage() {
             )}
         </div>
       </div>
+
+      {/* All Bets */}
+      {allBets && allBets.length > 0 && (
+        <div className="mt-6 border-2 border-border bg-card p-5 shadow-neo">
+          <h2 className="mb-4 font-heading text-xl font-extrabold">
+            All Bets
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-border">
+                  <th className="px-3 py-2 text-left font-heading text-sm font-extrabold">
+                    Trader
+                  </th>
+                  <th className="px-3 py-2 text-left font-heading text-sm font-extrabold">
+                    Side
+                  </th>
+                  <th className="px-3 py-2 text-right font-heading text-sm font-extrabold">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {allBets.map((bet, i) => (
+                  <tr
+                    key={i}
+                    className="border-b border-border last:border-b-0"
+                  >
+                    <td className="px-3 py-2 font-body text-sm font-bold">
+                      {shortenAddress(bet.user)}
+                      {hexAddress &&
+                        bet.user.toLowerCase() === hexAddress.toLowerCase() && (
+                          <span className="ml-2 border-2 border-border bg-blue-200 px-1.5 py-0.5 text-xs font-bold">
+                            YOU
+                          </span>
+                        )}
+                    </td>
+                    <td className="px-3 py-2 font-body text-sm font-bold">
+                      <span
+                        className={`border-2 border-border px-2 py-0.5 text-xs font-bold ${
+                          bet.isLong ? "bg-green-200" : "bg-red-200"
+                        }`}
+                      >
+                        {bet.isLong ? "LONG" : "SHORT"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-body text-sm font-bold">
+                      {formatGas(bet.amount)} GAS
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
