@@ -36,6 +36,7 @@ export default function Navbar() {
 
           {initiaAddress ? (
             <button
+              type="button"
               onClick={openWallet}
               className="flex items-center gap-2 border-2 border-border bg-main px-4 py-2 font-body text-sm font-bold shadow-neo-sm transition-all hover:neo-press"
             >
@@ -44,6 +45,7 @@ export default function Navbar() {
             </button>
           ) : (
             <button
+              type="button"
               onClick={openConnect}
               className="border-2 border-border bg-primary px-4 py-2 font-body text-sm font-bold text-primary-foreground shadow-neo-sm transition-all hover:neo-press"
             >

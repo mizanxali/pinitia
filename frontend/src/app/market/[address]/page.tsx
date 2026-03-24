@@ -200,6 +200,7 @@ export default function MarketPage() {
                   )}
                   {position.claimable > 0n && (
                     <button
+                      type="button"
                       onClick={handleClaim}
                       disabled={claiming}
                       className="w-full border-2 border-border bg-yellow-200 px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50"

@@ -26,10 +26,10 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} font-body antialiased`}
       >
-        {/* <Providers> */}
-        {/* <Navbar /> */}
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-        {/* </Providers> */}
+        <Providers>
+          <Navbar />
+          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        </Providers>
       </body>
     </html>
   );

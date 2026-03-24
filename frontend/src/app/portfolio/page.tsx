@@ -28,6 +28,7 @@ function ClaimButton({ marketAddress }: { marketAddress: `0x${string}` }) {
 
   return (
     <button
+      type="button"
       onClick={async () => {
         setLoading(true);
         try {
@@ -87,6 +88,7 @@ export default function PortfolioPage() {
           Connect your wallet to view your positions
         </p>
         <button
+          type="button"
           onClick={openConnect}
           className="border-2 border-border bg-primary px-6 py-3 font-heading font-extrabold shadow-neo transition-all hover:neo-press"
         >

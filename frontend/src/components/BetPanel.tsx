@@ -99,6 +99,7 @@ export default function BetPanel({ market }: BetPanelProps) {
       <div className="mt-4 grid grid-cols-2 gap-3">
         {!initiaAddress ? (
           <button
+            type="button"
             onClick={openConnect}
             className="col-span-2 border-2 border-border bg-primary px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press"
           >
@@ -111,6 +112,7 @@ export default function BetPanel({ market }: BetPanelProps) {
         ) : (
           <>
             <button
+              type="button"
               onClick={() => handleBet(true)}
               disabled={isSubmitting || !canBet}
               className="border-2 border-border bg-green-300 px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50"
@@ -118,6 +120,7 @@ export default function BetPanel({ market }: BetPanelProps) {
               {isSubmitting ? "..." : "LONG"}
             </button>
             <button
+              type="button"
               onClick={() => handleBet(false)}
               disabled={isSubmitting || !canBet}
               className="border-2 border-border bg-red-300 px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50"

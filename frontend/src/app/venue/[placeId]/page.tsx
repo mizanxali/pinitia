@@ -63,6 +63,7 @@ export default function VenuePage() {
       <div className="mb-6 flex border-2 border-border">
         {(["overview", "markets", "history"] as const).map((t) => (
           <button
+            type="button"
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 px-4 py-2 font-body text-sm font-bold transition-colors ${
