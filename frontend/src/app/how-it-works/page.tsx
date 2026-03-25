@@ -41,7 +41,7 @@ export default function HowItWorksPage() {
 
   return (
     <div>
-      <div className="mb-10">
+      <div className="mb-6">
         <h1 className="font-heading text-4xl font-extrabold">How It Works</h1>
         <p className="mt-2 font-body text-lg text-muted-foreground">
           Prediction markets on real-world places, powered by Google Maps data
@@ -49,7 +49,7 @@ export default function HowItWorksPage() {
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-0 md:gap-10">
+      <div className="flex flex-col md:flex-row gap-0 md:gap-8">
         <div className="space-y-6">
           {steps.map((step) => (
             <div
@@ -101,10 +101,22 @@ export default function HowItWorksPage() {
                   target value by the resolve date?
                 </span>
               </li>
+              <div className="w-fit border-2 border-border px-2 py-0.5 text-xs font-bold uppercase bg-main tracking-tight">
+                Coming soon
+              </div>
+              <li className="flex items-start gap-2">
+                <span
+                  className={`border-2 border-border px-2 py-0.5 text-xs font-bold bg-amber-200`}
+                >
+                  VIS
+                </span>
+                <span>
+                  <strong>Visitor activity score</strong> - Will the place have
+                  a live visitor activity score at or above a target value at
+                  resolve time?{" "}
+                </span>
+              </li>
             </ul>
-            <div className="mt-3 font-body text-sm text-muted-foreground">
-              More coming soon!
-            </div>
           </div>
 
           <div className="border-2 border-border bg-card p-6 shadow-neo">
