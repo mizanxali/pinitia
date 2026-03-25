@@ -44,6 +44,14 @@
       "rlig" 1,
       "calt" 1;
   }
+  /*
+   * InterwovenKit injects `button { all: unset }`, which sets border-style to none.
+   * Tailwind border-width utilities do not set border-style, so borders vanish while
+   * box-shadow still shows. Restore solid edges for our `border-2` neobrutalist buttons.
+   */
+  button:where([class*="border-2"]) {
+    border-style: solid;
+  }
 }
 
 @layer utilities {
