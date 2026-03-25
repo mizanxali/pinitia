@@ -8,6 +8,8 @@ export interface Place {
   name: string;
   address: string | null;
   photo_url: string | null;
+  city: string;
+  category: string;
 }
 
 export function usePlaces() {

@@ -10,8 +10,7 @@ export default function HomePage() {
         <p className="mt-2 font-body text-lg text-muted-foreground">
           Go long or short on Google Maps reviews and ratings of your favorite
           places.
-          <br />
-          🪢 Built on an Initia appchain.
+          <br />🪢 Built on an Initia appchain.
         </p>
       </div>
 

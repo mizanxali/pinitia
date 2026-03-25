@@ -242,30 +242,33 @@ bun run frontend:dev
 bun run oracle:dev
 
 # Seed markets (one-time)
-bun run oracle:seed
+bun run oracle:seed-markets
 
 # Compile contracts
-cd contracts && forge build
+bun run contracts:build
 
 # Run contract tests
-cd contracts && forge test
+bun run contracts:test
 ```
 
 ### Seeding & Testing
 
 ```bash
+# Seed places to Supabase (fetches venue metadata + initial snapshot from Google Places)
+bun run oracle:seed-places
+
 # Create initial markets across all venues
-bun run oracle:seed
+bun run oracle:seed-markets
 
 # Populate markets with test bets
-cd oracle && bun run seed-bets -- --bets 5 --max-amount 2
+bun run oracle:seed-bets -- --bets 5 --max-amount 2
 
-# Quick test: create 6 markets that resolve in 5 min, with bets pre-seeded
-cd oracle && bun run seed-quick
-cd oracle && bun run seed-quick -- --minutes 10  # custom resolve window
+# Quick test: create 5 markets that resolve in 5 min, with bets pre-seeded
+bun run oracle:seed-quick
+bun run oracle:seed-quick -- --minutes 10  # custom resolve window
 
 # Force-resolve a market (for testing)
-cd oracle && bun run force-resolve <market-address> long|short
+bun run oracle:force-resolve <market-address> long|short
 ```
 
 ---
@@ -381,7 +384,8 @@ pinitia/
 │       │   ├── poster.ts   # On-chain posting via ethers.js
 │       │   └── db.ts       # Supabase reads/writes
 │       ├── scripts/        # CLI scripts
-│       │   ├── seed.ts     # Seed markets across all venues
+│       │   ├── seed-places.ts   # Seed places to Supabase
+│       │   ├── seed-markets.ts  # Seed markets across all venues
 │       │   ├── seed-bets.ts    # Seed random bets on active markets
 │       │   ├── seed-quick.ts   # Quick markets (5-min resolve) + bets
 │       │   └── force-resolve.ts # Force-resolve a market for testing

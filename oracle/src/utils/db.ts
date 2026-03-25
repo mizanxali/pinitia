@@ -32,6 +32,8 @@ export async function writePlace(
   name: string,
   address: string,
   photoUrl: string | null,
+  city: string,
+  category: string,
 ) {
   const { error } = await supabase.from("places").upsert(
     {
@@ -39,6 +41,8 @@ export async function writePlace(
       name,
       address,
       photo_url: photoUrl,
+      city,
+      category,
     },
     { onConflict: "place_id" },
   );

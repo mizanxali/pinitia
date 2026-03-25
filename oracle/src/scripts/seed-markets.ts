@@ -4,17 +4,18 @@
  * run once to bootstrap the perpetual cycle.
  *
  * Usage:
- *   bun run seed
+ *   bun run seed-markets
  */
 import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
 import { MarketFactoryABI } from "../utils/abis.js";
 import { config } from "../utils/config.js";
-import { writeSnapshot, writePlace } from "../utils/db.js";
-import { fetchPlaceDetails } from "../utils/fetcher.js";
+import { fetchPlaceData } from "../utils/fetcher.js";
 
 interface VenueEntry {
   placeId: string;
+  city: string;
+  name: string;
 }
 
 const VELOCITY_TARGET_OFFSET = 10; // +10 reviews from current count
@@ -53,15 +54,8 @@ async function seed() {
     console.log(`\n--- ${placeId} ---`);
 
     // Fetch live data from Google Places
-    const data = await fetchPlaceDetails(placeId);
-    console.log(
-      `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount}`,
-    );
-
-    // Write to Supabase
-    await writePlace(placeId, data.name, data.address, data.photoUrl);
-    await writeSnapshot(placeId, data.rating, data.reviewCount);
-    console.log("  Supabase: place + snapshot saved");
+    const data = await fetchPlaceData(placeId);
+    console.log(`  rating=${data.rating}, reviews=${data.reviewCount}`);
 
     // VELOCITY market: target = current reviews + 10
     const velocityTarget = VELOCITY_TARGET_OFFSET;

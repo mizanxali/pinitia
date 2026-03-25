@@ -37,7 +37,7 @@ export default function VenueCard({ venue, markets }: VenueCardProps) {
             <span className="font-heading text-4xl">📍</span>
           )}
         </div>
-        <h3 className="font-heading text-lg font-extrabold leading-tight">
+        <h3 className="font-heading text-lg font-extrabold leading-tight line-clamp-1">
           {venue.name}
         </h3>
         <p className="mt-1 font-body text-xs text-muted-foreground line-clamp-1">

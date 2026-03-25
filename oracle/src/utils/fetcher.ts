@@ -13,6 +13,7 @@ export interface PlaceDetails {
   photoUrl: string | null;
   rating: number;
   reviewCount: number;
+  primaryType: string;
 }
 
 /**
@@ -51,7 +52,7 @@ export async function fetchPlaceDetails(
     headers: {
       "X-Goog-Api-Key": config.googlePlacesApiKey,
       "X-Goog-FieldMask":
-        "displayName,formattedAddress,rating,userRatingCount,photos",
+        "displayName,formattedAddress,rating,userRatingCount,photos,primaryType",
     },
   });
 
@@ -75,5 +76,6 @@ export async function fetchPlaceDetails(
     photoUrl,
     rating: data.rating ?? 0,
     reviewCount: data.userRatingCount ?? 0,
+    primaryType: data.primaryType ?? "",
   };
 }

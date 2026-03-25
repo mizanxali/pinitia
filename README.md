@@ -23,34 +23,44 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    ```
 
 2. **Configure environment**: Copy the example env files and fill in your values:
+
    ```bash
    cp oracle/.env.example oracle/.env
    cp frontend/.env.example frontend/.env.local
    ```
 
-3. **Seed markets** (if starting fresh):
+3. **Seed places to Supabase** (if starting fresh):
 
    ```bash
-   bun run oracle:seed
+   bun run oracle:seed-places
    ```
 
-4. **Start the app**:
+4. **Seed markets**:
+
+   ```bash
+   bun run oracle:seed-markets
+   ```
+
+5. **Start the app**:
+
    ```bash
    bun run frontend:dev    # Next.js frontend on localhost:3000
    bun run oracle:dev      # Oracle cron (hourly Google Places fetch + on-chain posting)
    ```
 
-5. **Seed test bets** (optional — populate markets with random bets):
+6. **Seed test bets** (optional — populate markets with random bets):
+
    ```bash
-   cd oracle && bun run seed-bets -- --bets 5 --max-amount 2
+   bun run oracle:seed-bets -- --bets 5 --max-amount 2
    ```
 
-6. **Quick test** (optional — create 6 markets that resolve in 5 min, with bets):
+7. **Quick test** (optional — create 6 markets that resolve in 5 min, with bets):
+
    ```bash
-   cd oracle && bun run seed-quick
+   bun run oracle:seed-quick
    ```
 
-7. **Force-resolve a market** (optional — manually resolve for testing):
+8. **Force-resolve a market** (optional — manually resolve for testing):
    ```bash
-   cd oracle && bun run force-resolve <market-address> long|short
+   bun run oracle:force-resolve <market-address> long|short
    ```

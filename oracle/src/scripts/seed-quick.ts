@@ -7,11 +7,11 @@
  *   npx tsx src/scripts/seed-quick.ts
  *   npx tsx src/scripts/seed-quick.ts --minutes 10   # custom resolve window
  */
+import { readFileSync } from "node:fs";
 import { ethers } from "ethers";
 import { config } from "../utils/config.js";
 import { MarketFactoryABI, MarketABI } from "../utils/abis.js";
-import { fetchPlaceDetails } from "../utils/fetcher.js";
-import { writePlace, writeSnapshot } from "../utils/db.js";
+import { fetchPlaceData } from "../utils/fetcher.js";
 
 // --- CLI args ---
 const args = process.argv.slice(2);
@@ -19,21 +19,6 @@ let resolveMinutes = 5;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--minutes") resolveMinutes = Number(args[++i]);
 }
-
-// Last 5 venues — each has room for 1 more market (4 of 5 slots used)
-const QUICK_VENUES = [
-  { placeId: "ChIJw68tewgVrjsRnVufs2uL3bY", name: "The Grid" },
-  { placeId: "ChIJQ1XqWTYVrjsR5b-exOFv8Wc", name: "Loco Bear" },
-  { placeId: "ChIJK3WK06kXrjsRtJJUPxlNE4A", name: "MAP" },
-  {
-    placeId: "ChIJzRxhID4WrjsRMW9WwS2aSzo",
-    name: "Karnataka Chitrakala Parishath",
-  },
-  {
-    placeId: "ChIJqZQybIEWrjsRezNLL4Ju2Gk",
-    name: "National Gallery of Modern Art",
-  },
-];
 
 const BET_AMOUNT_MIN = 0.01;
 const BET_AMOUNT_MAX = 0.1;
@@ -50,7 +35,19 @@ function randAmount(): string {
   return (milli / 1000).toFixed(3);
 }
 
+interface VenueEntry {
+  placeId: string;
+  city: string;
+  name: string;
+}
+
 async function main() {
+  const venues: VenueEntry[] = JSON.parse(
+    readFileSync(new URL("../data/venues.json", import.meta.url), "utf-8"),
+  );
+
+  const quickVenues = venues.slice(0, 5);
+
   const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
   const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
   const factory = new ethers.Contract(
@@ -67,31 +64,21 @@ async function main() {
   console.log(`Wallet:       ${wallet.address}`);
   console.log(`Balance:      ${ethers.formatEther(balance)} GAS`);
   console.log(`Resolve in:   ${resolveMinutes} minutes (${resolveTime})`);
-  console.log(`Venues:       ${QUICK_VENUES.length}`);
+  console.log(`Venues:       ${quickVenues.length}`);
   console.log();
 
   const createdMarkets: { address: string; venue: string; type: string }[] = [];
 
   // ── Phase 1: Create markets ──────────────────────────────────────────
 
-  for (const venue of QUICK_VENUES) {
+  for (const venue of quickVenues) {
     console.log(`\n--- ${venue.name} (${venue.placeId}) ---`);
 
     // Fetch live data from Google Places
-    const details = await fetchPlaceDetails(venue.placeId);
+    const details = await fetchPlaceData(venue.placeId);
     console.log(
       `  Live data: rating=${details.rating}, reviews=${details.reviewCount}`,
     );
-
-    // Write to Supabase
-    await writePlace(
-      venue.placeId,
-      details.name,
-      details.address,
-      details.photoUrl,
-    );
-    await writeSnapshot(venue.placeId, details.rating, details.reviewCount);
-    console.log("  Supabase: place + snapshot saved");
 
     // Create 1 VELOCITY market (1 slot available per venue)
     const velocityTarget = 5;
