@@ -100,7 +100,7 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
 - Writes snapshots to Supabase for frontend charts
 - Posts on-chain data via PlaceOracle when markets are past their resolve date
 - Auto-creates follow-up markets after resolution: if target was achieved, bumps target (+10 velocity, +0.1 rating); if not, keeps same target. Follow-ups resolve in 1 hour.
-- Seeding scripts for creating initial markets and test bets
+- Master seed script (`seed-all.ts`): seeds places to Supabase, creates markets, places test bets, and force-resolves one market per venue
 
 **Supabase** — Off-chain data layer
 
@@ -241,8 +241,8 @@ bun run frontend:dev
 # Oracle (hourly cron)
 bun run oracle:dev
 
-# Seed markets (one-time)
-bun run oracle:seed-markets
+# Seed everything (places + markets + bets + resolve)
+bun run oracle:seed-all
 
 # Compile contracts
 bun run contracts:build
@@ -254,14 +254,9 @@ bun run contracts:test
 ### Seeding & Testing
 
 ```bash
-# Seed places to Supabase (fetches venue metadata + initial snapshot from Google Places)
-bun run oracle:seed-places
-
-# Create initial markets across all venues
-bun run oracle:seed-markets
-
-# Populate markets with test bets
-bun run oracle:seed-bets -- --bets 5 --max-amount 2
+# Master seed: places → markets → bets → force-resolve one per venue
+bun run oracle:seed-all
+bun run oracle:seed-all -- --bets 5 --max-amount 2
 
 # Quick test: create 5 markets that resolve in 5 min, with bets pre-seeded
 bun run oracle:seed-quick
@@ -384,10 +379,8 @@ pinitia/
 │       │   ├── poster.ts   # On-chain posting via ethers.js
 │       │   └── db.ts       # Supabase reads/writes
 │       ├── scripts/        # CLI scripts
-│       │   ├── seed-places.ts   # Seed places to Supabase
-│       │   ├── seed-markets.ts  # Seed markets across all venues
-│       │   ├── seed-bets.ts    # Seed all active markets with random bets from random wallets funded by the oracle wallet
-│       │   ├── seed-quick.ts   # Quick markets (5-min resolve) + bets
+│       │   ├── seed-all.ts      # Master seed: places → markets → bets → force-resolve
+│       │   ├── seed-quick.ts    # Quick markets (5-min resolve) + bets
 │       │   └── force-resolve.ts # Force-resolve a market for testing
 │       └── data/
 │           └── venues.json # Curated venue list

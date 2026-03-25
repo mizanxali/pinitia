@@ -6,9 +6,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx src/index.ts",
-    "seed-places": "tsx src/scripts/seed-places.ts",
-    "seed-markets": "tsx src/scripts/seed-markets.ts",
-    "seed-bets": "tsx src/scripts/seed-bets.ts",
+    "seed-all": "tsx src/scripts/seed-all.ts",
     "seed-quick": "tsx src/scripts/seed-quick.ts",
     "force-resolve": "tsx src/scripts/force-resolve.ts"
   },
