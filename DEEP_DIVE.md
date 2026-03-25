@@ -174,8 +174,8 @@ Chain: **pinitia-1** (Initia EVM Minitia)
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0x9EabdE24897cf45c3Df84b62d099D0aeA4dB4687` |
-| PlaceOracle   | `0x53e8a9Ac2aCa9c8b0764aB149A5119A18c62B950` |
+| MarketFactory | `0xE837306C9f53Dd3ABD6542B8Ec8477EA29488211` |
+| PlaceOracle   | `0x3cb12b7245176b36653a2c00f5F148b32e3c5afE` |
 
 **Wiring**: MarketFactory's oracle → PlaceOracle contract. PlaceOracle's oracle → Gas Station EOA. Markets created by the factory inherit PlaceOracle as their oracle.
 
@@ -386,7 +386,7 @@ pinitia/
 │       ├── scripts/        # CLI scripts
 │       │   ├── seed-places.ts   # Seed places to Supabase
 │       │   ├── seed-markets.ts  # Seed markets across all venues
-│       │   ├── seed-bets.ts    # Seed random bets on active markets
+│       │   ├── seed-bets.ts    # Seed all active markets with random bets from random wallets funded by the oracle wallet
 │       │   ├── seed-quick.ts   # Quick markets (5-min resolve) + bets
 │       │   └── force-resolve.ts # Force-resolve a market for testing
 │       └── data/

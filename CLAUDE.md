@@ -20,8 +20,8 @@ Frontend reads: Supabase (history), chain via viem (markets/positions), Interwov
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0x9EabdE24897cf45c3Df84b62d099D0aeA4dB4687` |
-| PlaceOracle   | `0x53e8a9Ac2aCa9c8b0764aB149A5119A18c62B950` |
+| MarketFactory | `0xE837306C9f53Dd3ABD6542B8Ec8477EA29488211` |
+| PlaceOracle   | `0x3cb12b7245176b36653a2c00f5F148b32e3c5afE` |
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 

@@ -103,13 +103,25 @@ async function main() {
       const func = isLong ? "betLong" : "betShort";
 
       try {
-        const marketWithSigner = market.connect(wallet) as ethers.Contract;
+        // Create a fresh wallet for this bet
+        const betWallet = ethers.Wallet.createRandom().connect(provider);
+
+        // Transfer enough GAS to cover bet + gas fees
+        const gasPadding = ethers.parseEther("0.01"); // extra for tx fees
+        const transferAmount = value + gasPadding;
+        const fundTx = await wallet.sendTransaction({
+          to: betWallet.address,
+          value: transferAmount,
+        });
+        await fundTx.wait();
+
+        const marketWithSigner = market.connect(betWallet) as ethers.Contract;
         const tx = await marketWithSigner[func]({ value });
         await tx.wait();
         totalBets++;
-        totalSpent += value;
+        totalSpent += transferAmount;
         console.log(
-          `    [${i}] ${side} ${amount} GAS | tx: ${tx.hash.slice(0, 20)}...`,
+          `    [${i}] ${side} ${amount} GAS | wallet: ${betWallet.address.slice(0, 10)}... | tx: ${tx.hash.slice(0, 20)}...`,
         );
       } catch (err: any) {
         console.log(

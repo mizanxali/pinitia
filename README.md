@@ -48,7 +48,7 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    bun run oracle:dev      # Oracle cron (hourly Google Places fetch + on-chain posting)
    ```
 
-6. **Seed test bets** (optional — populate markets with random bets):
+6. **Seed test bets** (optional — populate all active markets with random bets from random wallets funded by the oracle wallet):
 
    ```bash
    bun run oracle:seed-bets -- --bets 5 --max-amount 2

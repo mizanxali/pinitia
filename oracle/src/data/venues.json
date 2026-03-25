@@ -10,11 +10,6 @@
     "city": "Dubai"
   },
   {
-    "placeId": "ChIJmYFyxAUUrjsRQ2009RsA3cM",
-    "name": "Big Pitcher Indiranagar",
-    "city": "Bengaluru"
-  },
-  {
     "placeId": "ChIJq_MCZPQRrjsRR82tjOEMQpg",
     "name": "BLR Brewing Co - Whitefield",
     "city": "Bengaluru"
@@ -30,21 +25,6 @@
     "city": "New York"
   },
   {
-    "placeId": "ChIJV_cNzKxZwokRBSm9L1iY3Vg",
-    "name": "Beer Authority",
-    "city": "New York"
-  },
-  {
-    "placeId": "ChIJWW4LoZNZwokRFOD1017tTZc",
-    "name": "Blind Tiger",
-    "city": "New York"
-  },
-  {
-    "placeId": "ChIJJRh7xZlDXz4RjV7zQr-X7dI",
-    "name": "BohoX",
-    "city": "Dubai"
-  },
-  {
     "placeId": "ChIJ2z9KiMtpXz4RfWIMxERmCD4",
     "name": "Brew House - Business Bay",
     "city": "Dubai"
@@ -53,21 +33,6 @@
     "placeId": "ChIJ4Q2rG4JZwokR8TVjhflNfMk",
     "name": "Clinton St. Baking Company",
     "city": "New York"
-  },
-  {
-    "placeId": "ChIJkQRnptFpXz4R_ZvB19c9l8g",
-    "name": "Distillery Dubai Gastropub",
-    "city": "Dubai"
-  },
-  {
-    "placeId": "ChIJ80IECk8UrjsRqCffDjE09lw",
-    "name": "Dyu Art Cafe",
-    "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJY1wW5wRDXz4Rtz0SoU718Z0",
-    "name": "Ernst Biergarten",
-    "city": "Dubai"
   },
   {
     "placeId": "ChIJXQ5UUDJpXz4RVWnUHR6Fl4M",
@@ -85,16 +50,6 @@
     "city": "Dubai"
   },
   {
-    "placeId": "ChIJvSQIgqFZwokRhjiCXvtJ_Tg",
-    "name": "Gramercy Tavern",
-    "city": "New York"
-  },
-  {
-    "placeId": "ChIJ8dxLTj1awokRcLagjGlwyHc",
-    "name": "Hole In The Wall - FiDi",
-    "city": "New York"
-  },
-  {
     "placeId": "ChIJAYNgfoVZwokRhOhogiV11mM",
     "name": "Immersive Gamebox - Lower East Side",
     "city": "New York"
@@ -105,34 +60,9 @@
     "city": "Dubai"
   },
   {
-    "placeId": "ChIJt62F1qwTrjsRzahuMZAxxYM",
-    "name": "Ironhill Bengaluru",
-    "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJAQAAMChoXz4RuJzcBOap9Mk",
-    "name": "Joe's Café Dubai",
-    "city": "Dubai"
-  },
-  {
-    "placeId": "ChIJ37SqAqoWrjsR0104e_dU3fY",
-    "name": "Lazy Suzy",
-    "city": "Bengaluru"
-  },
-  {
     "placeId": "ChIJQ1XqWTYVrjsR5b-exOFv8Wc",
     "name": "Loco Bear - The Ultimate Entertainment Hub",
     "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJqwEtA1ETrjsRsgt6bQ-rEaM",
-    "name": "Long Boat Brewing Co.",
-    "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJN6avE7lZwokRZrgdqFX1f6Y",
-    "name": "Milk & Hops",
-    "city": "New York"
   },
   {
     "placeId": "ChIJK3WK06kXrjsRtJJUPxlNE4A",
@@ -148,21 +78,6 @@
     "placeId": "ChIJx2wl8W1bwokRhjiCXvtJ_Tg",
     "name": "OS NYC",
     "city": "New York"
-  },
-  {
-    "placeId": "ChIJ56J9GJFZwokRdJwuF-USZIs",
-    "name": "Other Half Brewing - Rockefeller Center",
-    "city": "New York"
-  },
-  {
-    "placeId": "ChIJjfOyQ3cWrjsRz_TvsEoOQ0A",
-    "name": "Skyye",
-    "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJD5UHfYJCXz4RnIU14kEZeY4",
-    "name": "Social House",
-    "city": "Dubai"
   },
   {
     "placeId": "ChIJmZ5emqJYwokRuDz79o0coAQ",
@@ -185,11 +100,6 @@
     "city": "Bengaluru"
   },
   {
-    "placeId": "ChIJy9Ry9GcUrjsRlAT3TuW94lE",
-    "name": "The Hole In The Wall Cafe",
-    "city": "Bengaluru"
-  },
-  {
     "placeId": "ChIJb8Jg9pZYwokR-qHGtvSkLzs",
     "name": "The Metropolitan Museum of Art",
     "city": "New York"
@@ -205,23 +115,8 @@
     "city": "Bengaluru"
   },
   {
-    "placeId": "ChIJL1TUvnppXz4R6dLFHVH18U0",
-    "name": "The Tap House - Dubai Hills",
-    "city": "Dubai"
-  },
-  {
     "placeId": "ChIJO1fMmnRtXz4RzVge8ET0gP8",
     "name": "The Zone Arcade (JVC)",
     "city": "Dubai"
-  },
-  {
-    "placeId": "ChIJc0JAFaUWrjsRRXSXJPX7YFo",
-    "name": "Toit",
-    "city": "Bengaluru"
-  },
-  {
-    "placeId": "ChIJ-3cMy7oWrjsRu8up6eYKXaI",
-    "name": "Truffles - Indiranagar",
-    "city": "Bengaluru"
   }
 ]

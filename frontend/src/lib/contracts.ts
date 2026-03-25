@@ -1,6 +1,6 @@
 export const MARKET_FACTORY_ADDRESS =
   (process.env.NEXT_PUBLIC_MARKET_FACTORY_ADDRESS as `0x${string}`) ??
-  "0x9EabdE24897cf45c3Df84b62d099D0aeA4dB4687";
+  "0xE837306C9f53Dd3ABD6542B8Ec8477EA29488211";
 
 export const CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID ?? "pinitia-1";
 
