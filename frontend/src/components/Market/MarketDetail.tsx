@@ -144,7 +144,7 @@ export default function MarketDetail({ address }: { address: string }) {
         <h1 className="mt-3 font-heading text-2xl font-extrabold">
           {market.marketType === 0
             ? `Will this place gain ${market.target.toString()} new reviews?`
-            : `Will the rating for this place reach ${formatRating(market.target)}?`}
+            : `Will this place have a rating of ${formatRating(market.target)}?`}
         </h1>
 
         {/* Stats grid */}

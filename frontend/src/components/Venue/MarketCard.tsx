@@ -24,7 +24,7 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
   const targetLabel =
     market.marketType === 0
       ? `Will this place gain ${market.target.toString()} new reviews?`
-      : `Will the rating for this place reach ${formatRating(market.target)}?`;
+      : `Will this place have a rating of ${formatRating(market.target)}?`;
 
   return (
     <Link href={`/market/${market.address}`}>

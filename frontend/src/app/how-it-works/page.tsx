@@ -1,3 +1,5 @@
+import { CHAIN_ID } from "@/lib/contracts";
+
 export default function HowItWorksPage() {
   const steps = [
     {
@@ -124,6 +126,10 @@ export default function HowItWorksPage() {
               <li>
                 <strong className="text-foreground">Chain:</strong> Initia EVM
                 appchain (Minitia)
+              </li>
+              <li>
+                <strong className="text-foreground">Chain ID:</strong>{" "}
+                {CHAIN_ID}
               </li>
             </ul>
           </div>
