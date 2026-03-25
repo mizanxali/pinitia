@@ -27,7 +27,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${inter.variable} font-body antialiased`}
       >
         <Providers>
-          <Navbar /> {/* TODO: mweb responsive */}
+          <Navbar />
           <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         </Providers>
       </body>
