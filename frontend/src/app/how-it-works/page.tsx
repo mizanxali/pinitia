@@ -102,6 +102,9 @@ export default function HowItWorksPage() {
                 </span>
               </li>
             </ul>
+            <div className="mt-3 font-body text-sm text-muted-foreground">
+              More coming soon!
+            </div>
           </div>
 
           <div className="border-2 border-border bg-card p-6 shadow-neo">
