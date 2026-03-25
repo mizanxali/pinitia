@@ -43,7 +43,7 @@ function BetRow({
             bet.isLong ? "bg-green-200" : "bg-red-200"
           }`}
         >
-          {bet.isLong ? "LONG" : "SHORT"}
+          {bet.isLong ? "YES" : "NO"}
         </span>
       </td>
       <td className="px-3 py-2 text-right font-body text-sm font-bold">
@@ -114,7 +114,7 @@ export default function MarketDetail({ address }: { address: string }) {
         href={`/venue/${encodeURIComponent(market.placeId)}`}
         className="mb-4 inline-block font-body text-sm font-bold text-muted-foreground hover:underline"
       >
-        &larr; Back to venue
+        &larr; Back to place
       </Link>
 
       {/* Market header */}
@@ -143,8 +143,8 @@ export default function MarketDetail({ address }: { address: string }) {
 
         <h1 className="mt-3 font-heading text-2xl font-extrabold">
           {market.marketType === 0
-            ? `Will this venue gain ${market.target.toString()} reviews?`
-            : `Will the rating reach ${formatRating(market.target)}?`}
+            ? `Will this place gain ${market.target.toString()} new reviews?`
+            : `Will the rating for this place reach ${formatRating(market.target)}?`}
         </h1>
 
         {/* Stats grid */}
@@ -216,7 +216,7 @@ export default function MarketDetail({ address }: { address: string }) {
                     market.longWins ? "text-green-700" : "text-red-700"
                   }
                 >
-                  {market.longWins ? "LONG WINS" : "SHORT WINS"}
+                  {market.longWins ? "YES WINS" : "NO WINS"}
                 </span>
               </p>
             </div>
@@ -238,7 +238,7 @@ export default function MarketDetail({ address }: { address: string }) {
                 <div className="mt-3 space-y-2">
                   {position.longAmount > 0n && (
                     <div className="flex justify-between border-2 border-border bg-green-100 px-3 py-2">
-                      <span className="font-body text-sm font-bold">LONG</span>
+                      <span className="font-body text-sm font-bold">YES</span>
                       <span className="font-body text-sm font-bold">
                         {formatGas(position.longAmount)} GAS
                       </span>
@@ -246,7 +246,7 @@ export default function MarketDetail({ address }: { address: string }) {
                   )}
                   {position.shortAmount > 0n && (
                     <div className="flex justify-between border-2 border-border bg-red-100 px-3 py-2">
-                      <span className="font-body text-sm font-bold">SHORT</span>
+                      <span className="font-body text-sm font-bold">NO</span>
                       <span className="font-body text-sm font-bold">
                         {formatGas(position.shortAmount)} GAS
                       </span>

@@ -80,9 +80,7 @@ async function seed() {
       console.log(`  VELOCITY  target=+${velocityTarget} reviews  →  ${addr}`);
       created++;
     } catch (err: any) {
-      console.log(
-        `  VELOCITY  FAILED: ${err.message?.slice(0, 80)}`,
-      );
+      console.log(`  VELOCITY  FAILED: ${err.message?.slice(0, 80)}`);
     }
 
     // RATING market: target = current rating + 0.1 (capped at 5.0)
@@ -106,9 +104,7 @@ async function seed() {
         );
         created++;
       } catch (err: any) {
-        console.log(
-          `  RATING    FAILED: ${err.message?.slice(0, 80)}`,
-        );
+        console.log(`  RATING    FAILED: ${err.message?.slice(0, 80)}`);
       }
     }
   }

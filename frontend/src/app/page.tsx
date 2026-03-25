@@ -8,8 +8,8 @@ export default function HomePage() {
           Prediction Markets on Places
         </h1>
         <p className="mt-2 font-body text-lg text-muted-foreground">
-          Go LONG or SHORT on Google Maps ratings of your favorite places.
-          Winners split the losers&apos; pool.
+          Go long or short on Google Maps reviews and ratings of your favorite
+          places. Winners split the losers&apos; pool.
         </p>
       </div>
 

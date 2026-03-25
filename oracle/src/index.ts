@@ -95,10 +95,14 @@ async function run() {
     for (const m of resolvableMarkets) {
       try {
         const longWins = await getMarketResult(m.address);
-        const reviewCount = latestReviewCounts.get(m.placeId) ?? Number(m.initialReviewCount);
+        const reviewCount =
+          latestReviewCounts.get(m.placeId) ?? Number(m.initialReviewCount);
         await createFollowUpMarket(m.address, m, longWins, reviewCount);
       } catch (err: any) {
-        console.error(`  Follow-up check failed for ${m.address}:`, err.message?.slice(0, 100));
+        console.error(
+          `  Follow-up check failed for ${m.address}:`,
+          err.message?.slice(0, 100),
+        );
       }
     }
   }

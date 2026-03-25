@@ -91,7 +91,12 @@ const MAX_RATING_SCALED = 500n;
  */
 export async function createFollowUpMarket(
   marketAddress: string,
-  info: { marketType: number; placeId: string; target: bigint; initialReviewCount: bigint },
+  info: {
+    marketType: number;
+    placeId: string;
+    target: bigint;
+    initialReviewCount: bigint;
+  },
   longWins: boolean,
   currentReviewCount: number,
 ) {
@@ -139,9 +144,14 @@ export async function createFollowUpMarket(
   } catch (err: any) {
     // Max markets per place reached — skip silently
     if (err.message?.includes("Max markets")) {
-      console.log(`  Follow-up skipped for ${info.placeId}: max markets per place reached`);
+      console.log(
+        `  Follow-up skipped for ${info.placeId}: max markets per place reached`,
+      );
     } else {
-      console.error(`  Follow-up failed for ${info.placeId}:`, err.message?.slice(0, 100));
+      console.error(
+        `  Follow-up failed for ${info.placeId}:`,
+        err.message?.slice(0, 100),
+      );
     }
   }
 }

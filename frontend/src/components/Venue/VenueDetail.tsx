@@ -24,7 +24,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
         href="/"
         className="mb-4 inline-block font-body text-sm font-bold text-muted-foreground hover:underline"
       >
-        &larr; Back to venues
+        &larr; Back to places
       </Link>
 
       <div className="mb-6 border-2 border-border bg-card p-6 shadow-neo">
@@ -94,7 +94,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
             </div>
           ) : activeMarkets.length === 0 ? (
             <div className="border-2 border-border bg-muted p-6 text-center font-body text-sm font-bold text-muted-foreground">
-              No active markets for this venue
+              No active markets for this place
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -118,7 +118,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
             </div>
           ) : resolvedMarkets.length === 0 ? (
             <div className="border-2 border-border bg-muted p-6 text-center font-body text-sm font-bold text-muted-foreground">
-              No resolved markets for this venue yet
+              No resolved markets for this place yet
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">

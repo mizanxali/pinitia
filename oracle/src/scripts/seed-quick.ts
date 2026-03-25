@@ -25,8 +25,14 @@ const QUICK_VENUES = [
   { placeId: "ChIJw68tewgVrjsRnVufs2uL3bY", name: "The Grid" },
   { placeId: "ChIJQ1XqWTYVrjsR5b-exOFv8Wc", name: "Loco Bear" },
   { placeId: "ChIJK3WK06kXrjsRtJJUPxlNE4A", name: "MAP" },
-  { placeId: "ChIJzRxhID4WrjsRMW9WwS2aSzo", name: "Karnataka Chitrakala Parishath" },
-  { placeId: "ChIJqZQybIEWrjsRezNLL4Ju2Gk", name: "National Gallery of Modern Art" },
+  {
+    placeId: "ChIJzRxhID4WrjsRMW9WwS2aSzo",
+    name: "Karnataka Chitrakala Parishath",
+  },
+  {
+    placeId: "ChIJqZQybIEWrjsRezNLL4Ju2Gk",
+    name: "National Gallery of Modern Art",
+  },
 ];
 
 const BET_AMOUNT_MIN = 0.01;

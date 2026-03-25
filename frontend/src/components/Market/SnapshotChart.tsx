@@ -42,7 +42,7 @@ export default function SnapshotChart({
   }
 
   return (
-    <div className="border-2 border-border bg-card p-4">
+    <div className="border-2 border-border bg-card pr-4 pt-4">
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data}>
           <XAxis

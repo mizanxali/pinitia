@@ -101,10 +101,10 @@ export default function BetPanel({ market }: BetPanelProps) {
       <div className="mt-4">
         <div className="flex justify-between font-body text-xs font-bold">
           <span className="text-green-700">
-            LONG {formatGas(market.longPool)} GAS
+            YES {formatGas(market.longPool)} GAS
           </span>
           <span className="text-red-600">
-            SHORT {formatGas(market.shortPool)} GAS
+            NO {formatGas(market.shortPool)} GAS
           </span>
         </div>
         <div className="mt-1 flex h-5 border-2 border-border">
@@ -172,7 +172,7 @@ export default function BetPanel({ market }: BetPanelProps) {
               disabled={isSubmitting || !canBet}
               className="border-2 border-border bg-green-300 px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50"
             >
-              {isSubmitting ? "..." : "LONG"}
+              {isSubmitting ? "..." : "YES"}
             </button>
             <button
               type="button"
@@ -180,7 +180,7 @@ export default function BetPanel({ market }: BetPanelProps) {
               disabled={isSubmitting || !canBet}
               className="border-2 border-border bg-red-300 px-4 py-3 font-heading text-sm font-extrabold shadow-neo-sm transition-all hover:neo-press disabled:opacity-50"
             >
-              {isSubmitting ? "..." : "SHORT"}
+              {isSubmitting ? "..." : "NO"}
             </button>
           </>
         )}

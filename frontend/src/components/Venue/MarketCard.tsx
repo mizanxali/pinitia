@@ -23,8 +23,8 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
   const marketTypeLabel = market.marketType === 0 ? "VELOCITY" : "RATING";
   const targetLabel =
     market.marketType === 0
-      ? `${market.target.toString()} reviews`
-      : `Rating ${formatRating(market.target)}`;
+      ? `Will this place gain ${market.target.toString()} new reviews?`
+      : `Will the rating for this place reach ${formatRating(market.target)}?`;
 
   return (
     <Link href={`/market/${market.address}`}>
@@ -67,10 +67,10 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
         <div className="mt-3">
           <div className="flex justify-between font-body text-xs font-semibold">
             <span className="text-green-700">
-              LONG {formatGas(market.longPool)}
+              YES {formatGas(market.longPool)}
             </span>
             <span className="text-red-600">
-              SHORT {formatGas(market.shortPool)}
+              NO {formatGas(market.shortPool)}
             </span>
           </div>
           <div className="mt-1 flex h-3 border-2 border-border">
@@ -90,7 +90,7 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
 
         {market.resolved && (
           <div className="mt-2 border-2 border-border bg-yellow-200 p-2 text-center text-xs font-bold">
-            {`Resolved — ${market.longWins ? "LONG WINS" : "SHORT WINS"}`}
+            {`Resolved — ${market.longWins ? "YES WINS" : "NO WINS"}`}
           </div>
         )}
       </div>

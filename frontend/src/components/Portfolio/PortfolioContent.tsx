@@ -144,7 +144,7 @@ export default function PortfolioContent() {
         <div className="border-2 border-border bg-muted p-8 text-center font-body text-sm font-bold text-muted-foreground">
           No positions yet. Browse{" "}
           <Link href="/" className="text-primary underline">
-            venues
+            places
           </Link>{" "}
           to place your first bet.
         </div>
@@ -163,10 +163,10 @@ export default function PortfolioContent() {
                   Status
                 </th>
                 <th className="px-4 py-2 text-right font-heading text-xs font-extrabold">
-                  LONG
+                  YES
                 </th>
                 <th className="px-4 py-2 text-right font-heading text-xs font-extrabold">
-                  SHORT
+                  NO
                 </th>
                 <th className="px-4 py-2 text-right font-heading text-xs font-extrabold">
                   Claimable

@@ -20,7 +20,7 @@ export default function Navbar() {
             href="/"
             className="font-body text-sm font-semibold hover:underline"
           >
-            Venues
+            Places
           </Link>
           <Link
             href="/portfolio"
