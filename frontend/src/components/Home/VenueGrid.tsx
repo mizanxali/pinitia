@@ -49,15 +49,23 @@ export default function VenueGrid() {
     });
   }, [places, selectedCity, selectedCategory]);
 
-  const venueMarkets = filteredPlaces.map((place) => ({
-    venue: {
-      placeId: place.place_id,
-      name: place.name,
-      address: place.address ?? "",
-      photoUrl: place.photo_url ?? undefined,
-    },
-    markets: (markets ?? []).filter((m) => m.placeId === place.place_id),
-  }));
+  const venueMarkets = useMemo(() => {
+    return filteredPlaces
+      .map((place) => ({
+        venue: {
+          placeId: place.place_id,
+          name: place.name,
+          address: place.address ?? "",
+          photoUrl: place.photo_url ?? undefined,
+        },
+        markets: (markets ?? []).filter((m) => m.placeId === place.place_id),
+      }))
+      .sort((a, b) => {
+        const marketCountDiff = b.markets.length - a.markets.length;
+        if (marketCountDiff !== 0) return marketCountDiff;
+        return a.venue.name.localeCompare(b.venue.name);
+      });
+  }, [filteredPlaces, markets]);
 
   if (isLoading) {
     return (

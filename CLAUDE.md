@@ -20,8 +20,8 @@ Frontend reads: PostgreSQL via Drizzle (history, Next.js API routes), chain via 
 
 | Contract      | Address                                      |
 | ------------- | -------------------------------------------- |
-| MarketFactory | `0x797764f4cab7a0798D569A4537736D9e1a3F3787` |
-| PlaceOracle   | `0xcD1Ef4B001D48F778F3fA24C2AF511F6c16CACDA` |
+| MarketFactory | `0x231E3F6799cc3dEaD374d29844C237802031bEc0` |
+| PlaceOracle   | `0xA3A1F6ca609Ff930B400B73aCBacC4B771D1cda6` |
 
 Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
 
