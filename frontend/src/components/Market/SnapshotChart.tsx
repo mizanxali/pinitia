@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { type PlaceSnapshot } from "@/lib/supabase";
+import { type PlaceSnapshot } from "@/hooks/useSnapshotHistory";
 
 interface SnapshotChartProps {
   snapshots: PlaceSnapshot[];

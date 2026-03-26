@@ -1,20 +1,22 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase, type PlaceSnapshot } from "@/lib/supabase";
+
+export interface PlaceSnapshot {
+  id: number;
+  place_id: string;
+  rating: number;
+  review_count: number;
+  fetched_at: string;
+}
 
 export function useSnapshotHistory(placeId: string) {
   return useQuery({
     queryKey: ["snapshots", placeId],
     queryFn: async (): Promise<PlaceSnapshot[]> => {
-      const { data, error } = await supabase
-        .from("place_snapshots")
-        .select("*")
-        .eq("place_id", placeId)
-        .order("fetched_at", { ascending: true });
-
-      if (error) throw error;
-      return data ?? [];
+      const res = await fetch(`/api/snapshots?placeId=${placeId}`);
+      if (!res.ok) throw new Error("Failed to fetch snapshots");
+      return res.json();
     },
     refetchInterval: 60_000,
   });

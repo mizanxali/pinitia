@@ -66,14 +66,14 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
                                 │                              │
                                 ▼                              ▼
                          ┌──────────────┐              ┌──────────────────┐
-                         │   Supabase    │              │  MarketFactory   │
-                         │  (snapshots)  │              │   (Solidity)     │
+                         │  PostgreSQL   │              │  MarketFactory   │
+                         │  (Drizzle)    │              │   (Solidity)     │
                          └──────┬────────┘              └───────┬──────────┘
                                 │                              │
                                 ▼                              ▼
                          ┌─────────────────────────────────────────────────┐
                          │              Next.js Frontend                    │
-                         │  reads: Supabase (history) + chain via viem     │
+                         │  reads: PostgreSQL via API routes + chain/viem  │
                          │  writes: InterwovenKit (wallet + tx signing)    │
                          └─────────────────────────────────────────────────┘
 ```
@@ -97,15 +97,17 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
 **Oracle Service** (TypeScript, bun) — `oracle/`
 
 - Hourly cron fetching Google Places API data
-- Writes snapshots to Supabase for frontend charts
+- Writes snapshots to PostgreSQL via Drizzle for frontend charts
 - Posts on-chain data via PlaceOracle when markets are past their resolve date
 - Auto-creates follow-up markets after resolution: if target was achieved, bumps target (+10 velocity, +0.1 rating); if not, keeps same target. Follow-ups resolve in 1 hour.
-- Master seed script (`seed-all.ts`): seeds places to Supabase, creates markets, places test bets, and force-resolves one market per venue
+- Master seed script (`seed-all.ts`): seeds places to PostgreSQL, creates markets, places test bets, and force-resolves one market per venue
 
-**Supabase** — Off-chain data layer
+**PostgreSQL + Drizzle ORM** — Off-chain data layer
 
-- `places` table: venue metadata (name, address, photo URL)
-- `place_snapshots` table: historical rating/review data for charts
+- `places` table: venue metadata (name, address, photo URL, city, category)
+- `place_snapshots` table: historical rating/review data for charts (FK → places)
+- Schema defined in `oracle/src/utils/schema.ts`, shared by frontend
+- Local dev via Docker (`bun run db:start`), schema push via `bun run db:push`
 
 ---
 
@@ -162,7 +164,7 @@ The toggle lives directly in the `BetPanel` component — green when active, gre
 | Frontend  | Next.js 15, React 19, TypeScript, Tailwind CSS                                  |
 | Web3      | wagmi 2.17.2, viem 2.47.6, @initia/interwovenkit-react 2.4.6                    |
 | Charts    | Recharts                                                                        |
-| Database  | Supabase (PostgreSQL + RLS)                                                     |
+| Database  | PostgreSQL + Drizzle ORM (local Docker for dev)                                 |
 | Oracle    | bun + node-cron + ethers.js 6 + Google Places API                               |
 | Design    | Neobrutalism — hard borders, offset shadows, flat colors, Space Grotesk + Inter |
 
@@ -198,9 +200,9 @@ Chain: **pinitia-1** (Initia EVM Minitia)
 ### Prerequisites
 
 - [bun](https://bun.sh/) (runtime + package manager)
+- [Docker](https://docs.docker.com/get-docker/) (for local PostgreSQL)
 - [Foundry](https://book.getfoundry.sh/) (for contracts)
 - Google Places API key
-- Supabase project with `places` and `place_snapshots` tables
 
 ### Install
 
@@ -218,8 +220,7 @@ MINITIA_RPC_URL=           # Minitia JSON-RPC endpoint
 PLACE_ORACLE_ADDRESS=      # PlaceOracle contract address
 MARKET_FACTORY_ADDRESS=    # MarketFactory contract address
 GOOGLE_PLACES_API_KEY=     # Google Places API key
-SUPABASE_URL=              # Supabase project URL
-SUPABASE_SERVICE_ROLE_KEY= # Supabase service role key (write access)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pinitia
 ```
 
 **Frontend** (`frontend/.env.local`):
@@ -228,13 +229,18 @@ SUPABASE_SERVICE_ROLE_KEY= # Supabase service role key (write access)
 NEXT_PUBLIC_MINITIA_RPC_URL=           # Minitia JSON-RPC endpoint
 NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=    # MarketFactory contract address
 NEXT_PUBLIC_CHAIN_ID=pinitia-1
-NEXT_PUBLIC_SUPABASE_URL=              # Supabase project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=         # Supabase anon key (read-only)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pinitia
 ```
 
 ### Run
 
 ```bash
+# Start local PostgreSQL (Docker)
+bun run oracle:db-start
+
+# Push Drizzle schema to database
+bun run oracle:db-push
+
 # Frontend (dev server)
 bun run frontend:dev
 
@@ -243,6 +249,9 @@ bun run oracle:dev
 
 # Seed everything (places + markets + bets + resolve)
 bun run oracle:seed-all
+
+# Browse database (Drizzle Studio)
+bun run oracle:db-studio
 
 # Compile contracts
 bun run contracts:build
@@ -278,7 +287,7 @@ bun run oracle:force-resolve <market-address> long|short
 
 **Initia EVM (Minitia)**: Native Cosmos wallet UX via InterwovenKit with EVM contract execution. Auto-signing means users can place multiple bets without repeated popups.
 
-**Off-chain snapshots**: Historical rating/review data stored in Supabase for fast frontend chart rendering. On-chain data is limited to resolution-critical values.
+**Off-chain snapshots**: Historical rating/review data stored in PostgreSQL (via Drizzle ORM) for fast frontend chart rendering. On-chain data is limited to resolution-critical values.
 
 ---
 
@@ -339,10 +348,10 @@ Read calls use a standalone viem `publicClient` — no wallet extension required
 ## Submission Checklist
 
 - [x] Smart contracts deployed on `pinitia-1`
-- [x] Supabase schema with RLS policies
+- [x] PostgreSQL schema via Drizzle ORM
 - [x] Frontend with venue browsing, market detail, portfolio, leaderboard
 - [x] InterwovenKit wallet connection + auto-signing
-- [x] Oracle pipeline (hourly Google Places → Supabase + on-chain)
+- [x] Oracle pipeline (hourly Google Places → PostgreSQL + on-chain)
 - [x] Historical snapshot charts (Recharts)
 - [x] 10–15 markets seeded across multiple venues
 - [x] Oracle resolves at least 1 market end-to-end
@@ -368,7 +377,7 @@ pinitia/
 │       ├── app/            # Pages (home, venue, market, portfolio, leaderboard)
 │       ├── components/     # UI components
 │       ├── hooks/          # Data fetching (useMarkets, useBet, useClaim, etc.)
-│       └── lib/            # Config, ABIs, Supabase client, utilities
+│       └── lib/            # Config, ABIs, Drizzle DB client, schema, utilities
 ├── oracle/                 # Oracle service
 │   └── src/
 │       ├── index.ts        # Hourly cron entry point
@@ -377,7 +386,8 @@ pinitia/
 │       │   ├── abis.ts     # Contract ABIs (ethers human-readable)
 │       │   ├── fetcher.ts  # Google Places API client
 │       │   ├── poster.ts   # On-chain posting via ethers.js
-│       │   └── db.ts       # Supabase reads/writes
+│       │   ├── db.ts       # PostgreSQL reads/writes via Drizzle
+│       │   └── schema.ts   # Drizzle table schema
 │       ├── scripts/        # CLI scripts
 │       │   ├── seed-all.ts      # Master seed: places → markets → bets → force-resolve
 │       │   ├── seed-quick.ts    # Quick markets (5-min resolve) + bets

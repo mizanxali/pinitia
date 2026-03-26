@@ -8,14 +8,22 @@
     "dev": "tsx src/index.ts",
     "seed-all": "tsx src/scripts/seed-all.ts",
     "seed-quick": "tsx src/scripts/seed-quick.ts",
-    "force-resolve": "tsx src/scripts/force-resolve.ts"
+    "force-resolve": "tsx src/scripts/force-resolve.ts",
+    "db:push": "drizzle-kit push",
+    "db:start": "./start-database.sh",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0",
     "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.1",
     "ethers": "^6.13.5",
     "node-cron": "^3.0.3",
+    "postgres": "^3.4.8",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "drizzle-kit": "^0.31.10"
   }
 }

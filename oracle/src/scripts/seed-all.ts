@@ -99,6 +99,8 @@ async function seedPlaces(): Promise<VenueEntry[]> {
   const results = await Promise.allSettled(
     venues.map(async (venue) => {
       const data = await fetchPlaceDetails(venue.placeId);
+
+      // Write place + current snapshot
       await Promise.all([
         writePlace(
           venue.placeId,
@@ -110,8 +112,29 @@ async function seedPlaces(): Promise<VenueEntry[]> {
         ),
         writeSnapshot(venue.placeId, data.rating, data.reviewCount),
       ]);
+
+      // Generate 5 fake historical snapshots (each 1 hour apart going back)
+      const now = Date.now();
+      let histRating = data.rating;
+      let histReviews = data.reviewCount;
+      const reviewDecrements = [1, 2, 5, 10];
+
+      for (let i = 1; i <= 5; i++) {
+        const fetchedAt = new Date(now - i * 60 * 60 * 1000).toISOString();
+        // Rating: keep same or decrease by 0.1
+        if (Math.random() < 0.5 && histRating >= 0.1) {
+          histRating = Math.round((histRating - 0.1) * 10) / 10;
+        }
+        // Reviews: decrease by 1, 2, 5, or 10
+        const dec =
+          reviewDecrements[Math.floor(Math.random() * reviewDecrements.length)];
+        histReviews = Math.max(0, histReviews - dec);
+
+        await writeSnapshot(venue.placeId, histRating, histReviews, fetchedAt);
+      }
+
       console.log(
-        `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount} ✓`,
+        `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount} (+5 historical) ✓`,
       );
     }),
   );

@@ -106,6 +106,18 @@ export default function HowItWorksPage() {
               </div>
               <li className="flex items-start gap-2">
                 <span
+                  className={`border-2 border-border px-2 py-0.5 text-xs font-bold bg-sky-200`}
+                >
+                  STR
+                </span>
+                <span>
+                  <strong>Individual star rating</strong> - Will the place have
+                  more than the target number of 4 star ratings by the resolve
+                  date?
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span
                   className={`border-2 border-border px-2 py-0.5 text-xs font-bold bg-amber-200`}
                 >
                   VIS

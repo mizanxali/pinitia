@@ -12,8 +12,8 @@ Initia EVM appchain (Minitia) for INITIATE Hackathon 2026. Deadline: April 15. T
 ## Architecture
 
 ```
-Oracle (hourly cron) → Google Places API → Supabase (snapshots) + PlaceOracle contract
-Frontend reads: Supabase (history), chain via viem (markets/positions), InterwovenKit (wallet + tx signing)
+Oracle (hourly cron) → Google Places API → PostgreSQL via Drizzle (snapshots) + PlaceOracle contract
+Frontend reads: PostgreSQL via Drizzle (history, Next.js API routes), chain via viem (markets/positions), InterwovenKit (wallet + tx signing)
 ```
 
 ## Deployed Contracts (pinitia-1)
@@ -43,7 +43,7 @@ Bets: native GAS token (18 decimals). Ratings: scaled 1e2 (4.6 → 460). Review 
 
 ## Frontend
 
-Next.js 15 App Router, React 19, TypeScript, Tailwind, wagmi 2.17.2, viem, TanStack Query, Recharts, Supabase client, `@initia/interwovenkit-react` 2.4.6.
+Next.js 15 App Router, React 19, TypeScript, Tailwind, wagmi 2.17.2, viem, TanStack Query, Recharts, Drizzle ORM, `@initia/interwovenkit-react` 2.4.6.
 
 ### Provider Setup (`components/Providers.tsx`)
 
@@ -53,7 +53,7 @@ Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. In
 
 | Route               | Description                                                                |
 | ------------------- | -------------------------------------------------------------------------- |
-| `/`                 | Curated venue cards grid (venues loaded from Supabase `places` table)      |
+| `/`                 | Curated venue cards grid (venues loaded from `places` table via API route) |
 | `/venue/[placeId]`  | Venue detail — rating/review charts, active markets, snapshot history      |
 | `/market/[address]` | Market detail — progress chart, pool bars, bet panel, user position, claim |
 | `/portfolio`        | User positions across all markets, claimable winnings                      |
@@ -74,15 +74,19 @@ Neobrutalism style: hard black borders (`border-2 border-border`), offset box sh
 ## Oracle Pipeline (hourly, already running)
 
 1. Reads active place IDs from MarketFactory on-chain
-2. Fetches from Google Places API, writes to Supabase `place_snapshots`
+2. Fetches from Google Places API, writes to PostgreSQL `place_snapshots` via Drizzle
 3. If past resolveDate: posts on-chain via `PlaceOracle.postPlaceData()` which auto-resolves eligible markets
 4. Auto-creates follow-up markets: target achieved → bump (+10 velocity, +0.1 rating); not achieved → same target. Resolves in 1 hour. Skips silently if max markets per place reached.
 
-## Supabase
+## Database (PostgreSQL + Drizzle ORM)
 
-Table: `places` — columns: `place_id` (text, PK), `name` (text), `address` (text), `photo_url` (text), `created_at` (timestamptz). RLS: public read. Upserted by seed script via `fetchPlaceDetails()` from Google Places API (displayName, formattedAddress, photos).
+Schema defined in `oracle/src/utils/schema.ts` (shared by frontend at `frontend/src/lib/schema.ts`). Local dev uses Docker via `bun run db:start`.
 
-Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), `review_count` (int), `fetched_at` (timestamptz). RLS: public read, service role write.
+Table: `places` — columns: `place_id` (text, PK), `name` (text), `address` (text), `photo_url` (text), `city` (text), `category` (text), `created_at` (timestamptz). Upserted by seed script via `fetchPlaceDetails()` from Google Places API (displayName, formattedAddress, photos).
+
+Table: `place_snapshots` — columns: `id` (serial, PK), `place_id` (text, FK → places), `rating` (numeric 3,2), `review_count` (int), `fetched_at` (timestamptz).
+
+Frontend reads via Next.js API routes (`/api/places`, `/api/snapshots`). Oracle writes via Drizzle directly. Schema push: `bun run db:push`.
 
 ## Common Issues
 
@@ -97,7 +101,7 @@ Table: `place_snapshots` — columns: `id`, `place_id`, `rating` (numeric 3,2), 
 ## Submission Checklist
 
 - [x] Contracts deployed on pinitia-1
-- [x] Supabase schema + RLS
+- [x] PostgreSQL schema via Drizzle ORM
 - [x] 10–15 markets seeded across multiple venues
 - [ ] Wallet connection + auto-signing (3+ bets without popup)
 - [x] Oracle resolves at least 1 market

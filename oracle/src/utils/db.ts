@@ -1,10 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { desc, eq } from "drizzle-orm";
 import { config } from "./config.js";
+import { places, placeSnapshots } from "./schema.js";
 
-export const supabase = createClient(
-  config.supabaseUrl,
-  config.supabaseServiceRoleKey,
-);
+const client = postgres(config.databaseUrl);
+export const db = drizzle(client);
 
 export interface PlaceSnapshot {
   place_id: string;
@@ -17,14 +18,14 @@ export async function writeSnapshot(
   placeId: string,
   rating: number,
   reviewCount: number,
+  fetchedAt?: string,
 ) {
-  const { error } = await supabase.from("place_snapshots").insert({
+  await db.insert(placeSnapshots).values({
     place_id: placeId,
-    rating,
+    rating: String(rating),
     review_count: reviewCount,
+    ...(fetchedAt ? { fetched_at: new Date(fetchedAt) } : {}),
   });
-  if (error)
-    throw new Error(`Supabase insert failed for ${placeId}: ${error.message}`);
 }
 
 export async function writePlace(
@@ -35,36 +36,39 @@ export async function writePlace(
   city: string,
   category: string,
 ) {
-  const { error } = await supabase.from("places").upsert(
-    {
+  await db
+    .insert(places)
+    .values({
       place_id: placeId,
       name,
       address,
       photo_url: photoUrl,
       city,
       category,
-    },
-    { onConflict: "place_id" },
-  );
-  if (error)
-    throw new Error(
-      `Supabase places upsert failed for ${placeId}: ${error.message}`,
-    );
+    })
+    .onConflictDoUpdate({
+      target: places.place_id,
+      set: { name, address, photo_url: photoUrl, city, category },
+    });
 }
 
 export async function getLatestSnapshot(
   placeId: string,
 ): Promise<PlaceSnapshot | null> {
-  const { data, error } = await supabase
-    .from("place_snapshots")
-    .select("*")
-    .eq("place_id", placeId)
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .single();
+  const rows = await db
+    .select()
+    .from(placeSnapshots)
+    .where(eq(placeSnapshots.place_id, placeId))
+    .orderBy(desc(placeSnapshots.fetched_at))
+    .limit(1);
 
-  if (error && error.code !== "PGRST116") {
-    throw new Error(`Supabase read failed for ${placeId}: ${error.message}`);
-  }
-  return data ?? null;
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+  return {
+    place_id: row.place_id,
+    rating: Number(row.rating),
+    review_count: row.review_count,
+    fetched_at: row.fetched_at?.toISOString(),
+  };
 }

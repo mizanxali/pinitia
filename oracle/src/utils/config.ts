@@ -12,6 +12,5 @@ export const config = {
   placeOracleAddress: required("PLACE_ORACLE_ADDRESS"),
   marketFactoryAddress: required("MARKET_FACTORY_ADDRESS"),
   googlePlacesApiKey: required("GOOGLE_PLACES_API_KEY"),
-  supabaseUrl: required("SUPABASE_URL"),
-  supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+  databaseUrl: required("DATABASE_URL"),
 };
