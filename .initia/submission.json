@@ -1,0 +1,12 @@
+{
+  "project_name": "Pinitia",
+  "repo_url": "https://github.com/mizanxali/pinitia",
+  "commit_sha": "",
+  "rollup_chain_id": "pinitia-1",
+  "deployed_address": "",
+  "vm": "evm",
+  "native_feature": "initia-usernames",
+  "core_logic_path": "contracts/src/MarketFactory.sol",
+  "native_feature_frontend_path": "frontend/src/components/Leaderboard/LeaderboardContent.tsx",
+  "demo_video_url": ""
+}
