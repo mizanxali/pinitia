@@ -54,3 +54,8 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    ```bash
    bun run oracle:force-resolve <market-address> long|short
    ```
+
+![Screenshot 1](gallery/ss1.png)
+![Screenshot 2](gallery/ss2.png)
+![Screenshot 3](gallery/ss3.png)
+![Screenshot 4](gallery/ss4.png)
