@@ -8,7 +8,7 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
 
 ### Implementation Detail
 
-- **The Custom Implementation**: A full binary parimutuel prediction market system tied to Google Maps data. Three Solidity contracts (MarketFactory, Market, PlaceOracle) handle market creation, betting, and oracle-driven resolution. An off-chain oracle service runs on an hourly cron, fetching live rating and review count data from the Google Places API, writing snapshots to Supabase for historical charts, and posting resolution data on-chain — which auto-resolves any eligible markets past their resolve date. The frontend provides venue browsing, real-time pool visualization, historical snapshot charts, a portfolio tracker, and a PnL leaderboard. Two market types exist: VELOCITY (will review count grow by N?) and RATING (will rating reach X.X?), both resolved purely from public Google data. For a comprehensive technical deep dive into the architecture, smart contracts, oracle pipeline, transaction patterns, and design decisions, see [DEEP_DIVE.md](./DEEP_DIVE.md).
+- **The Custom Implementation**: A full binary parimutuel prediction market system tied to Google Maps data. Three Solidity contracts (MarketFactory, Market, PlaceOracle) handle market creation, betting, and oracle-driven resolution. An off-chain oracle service runs on an hourly cron, fetching live rating and review count data from the Google Places API, writing snapshots to PostgreSQL for historical charts, and posting resolution data on-chain — which auto-resolves any eligible markets past their resolve date. The frontend provides venue browsing, real-time pool visualization, historical snapshot charts, a portfolio tracker, and a PnL leaderboard. Two market types exist: VELOCITY (will review count grow by N?) and RATING (will rating reach X.X?), both resolved purely from public Google data. For a comprehensive technical deep dive into the architecture, smart contracts, oracle pipeline, transaction patterns, and design decisions, see [DEEP_DIVE.md](./DEEP_DIVE.md).
 
 - **The Native Feature**: Pinitia uses two Interwoven features — **Initia Usernames** and **Auto-Signing**:
   - **Usernames**: Instead of showing raw `init1...` addresses, the app resolves human-readable Initia usernames via InterwovenKit's `useUsernameQuery` hook across the navbar, bet history tables, and leaderboard. This makes the experience social — you see who's betting on what, not anonymous hex strings.
@@ -50,13 +50,7 @@ Pinitia is a prediction market platform where users bet on the real-world perfor
    bun run oracle:dev      # Oracle cron (hourly Google Places fetch + on-chain posting)
    ```
 
-6. **Quick test** (optional — create 6 markets that resolve in 5 min, with bets):
-
-   ```bash
-   bun run oracle:seed-quick
-   ```
-
-7. **Force-resolve a market** (optional — manually resolve for testing):
+6. **Force-resolve a market** (optional — manually resolve for testing):
    ```bash
    bun run oracle:force-resolve <market-address> long|short
    ```
