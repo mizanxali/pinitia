@@ -151,7 +151,7 @@ export default function HowItWorksPage() {
                 Places API, posted on-chain hourly
               </li>
               <li>
-                <strong className="text-foreground">Chain:</strong> Initia EVM
+                <strong className="text-foreground">Chain:</strong> Initia Move
                 appchain (Minitia)
               </li>
               <li>

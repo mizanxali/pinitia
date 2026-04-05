@@ -4,7 +4,7 @@
   "commit_sha": "",
   "rollup_chain_id": "pinitia-1",
   "deployed_address": "",
-  "vm": "evm",
+  "vm": "move",
   "native_feature": "initia-usernames",
   "core_logic_path": "contracts/src/MarketFactory.sol",
   "native_feature_frontend_path": "frontend/src/components/Leaderboard/LeaderboardContent.tsx",
