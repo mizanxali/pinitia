@@ -2,14 +2,9 @@
 
 import { useActiveMarkets } from "@/hooks/useMarkets";
 import { useQuery } from "@tanstack/react-query";
-import { createPublicClient, http, parseAbiItem } from "viem";
-import { MINITIA_RPC_URL } from "@/lib/contracts";
-import { formatGas, shortenAddress } from "@/lib/utils";
+import { moveView, encodeU64Arg } from "@/lib/move";
+import { formatMin, shortenAddress } from "@/lib/utils";
 import { useUsernameQuery } from "@initia/interwovenkit-react";
-
-const client = createPublicClient({
-  transport: http(MINITIA_RPC_URL),
-});
 
 interface LeaderboardEntry {
   address: string;
@@ -42,10 +37,10 @@ function LeaderboardRow({
       </td>
       <td className="px-4 py-3 text-right font-body text-sm">{entry.bets}</td>
       <td className="px-4 py-3 text-right font-body text-sm">
-        {formatGas(entry.totalBet)}
+        {formatMin(entry.totalBet)}
       </td>
       <td className="px-4 py-3 text-right font-body text-sm">
-        {formatGas(entry.totalClaimed)}
+        {formatMin(entry.totalClaimed)}
       </td>
       <td
         className={`px-4 py-3 text-right font-body text-sm font-extrabold ${
@@ -57,7 +52,7 @@ function LeaderboardRow({
         }`}
       >
         {entry.pnl > 0n ? "+" : ""}
-        {formatGas(entry.pnl)} GAS
+        {formatMin(entry.pnl)} MIN
       </td>
     </tr>
   );
@@ -67,7 +62,7 @@ export default function LeaderboardContent() {
   const { data: markets } = useActiveMarkets();
 
   const { data: leaderboard, isLoading } = useQuery({
-    queryKey: ["leaderboard", markets?.map((m) => m.address)],
+    queryKey: ["leaderboard", markets?.map((m) => m.marketId)],
     queryFn: async (): Promise<LeaderboardEntry[]> => {
       if (!markets || markets.length === 0) return [];
 
@@ -79,18 +74,20 @@ export default function LeaderboardContent() {
       await Promise.all(
         markets.map(async (market) => {
           try {
-            const betLogs = await client.getLogs({
-              address: market.address,
-              event: parseAbiItem(
-                "event BetPlaced(address indexed user, bool isLong, uint256 amount)",
-              ),
-              fromBlock: 0n,
-              toBlock: "latest",
-            });
+            // Get all bet entries from the view function
+            const bets = await moveView(
+              "get_market_bets",
+              [],
+              [encodeU64Arg(market.marketId)],
+            );
 
-            for (const log of betLogs) {
-              const user = log.args.user!.toLowerCase();
-              const amount = log.args.amount!;
+            for (const bet of bets as unknown as Array<{
+              user: string;
+              is_long: boolean;
+              amount: string;
+            }>) {
+              const user = bet.user;
+              const amount = BigInt(bet.amount);
               const existing = userMap.get(user) ?? {
                 totalBet: 0n,
                 totalClaimed: 0n,
@@ -100,29 +97,10 @@ export default function LeaderboardContent() {
               existing.bets += 1;
               userMap.set(user, existing);
             }
-
-            const claimLogs = await client.getLogs({
-              address: market.address,
-              event: parseAbiItem(
-                "event WinningsClaimed(address indexed user, uint256 amount)",
-              ),
-              fromBlock: 0n,
-              toBlock: "latest",
-            });
-
-            for (const log of claimLogs) {
-              const user = log.args.user!.toLowerCase();
-              const amount = log.args.amount!;
-              const existing = userMap.get(user) ?? {
-                totalBet: 0n,
-                totalClaimed: 0n,
-                bets: 0,
-              };
-              existing.totalClaimed += amount;
-              userMap.set(user, existing);
-            }
+            // Note: claimed amounts would need a separate tracking mechanism
+            // For now, leaderboard shows bet volume only
           } catch {
-            // skip markets that fail log fetching
+            // skip markets that fail
           }
         }),
       );

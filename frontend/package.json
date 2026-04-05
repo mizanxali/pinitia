@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@initia/icons-react": "^2.1.0",
+    "@initia/initia.js": "^1.1.0",
+    "@initia/initia.proto": "^1.0.5",
     "@initia/interwovenkit-react": "^2.4.6",
     "@tanstack/react-query": "^5.95.2",
     "clsx": "^2.1.1",

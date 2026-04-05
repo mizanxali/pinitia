@@ -91,7 +91,7 @@ function NavbarWallet({
 }
 
 export default function Navbar() {
-  const { initiaAddress, username, openConnect, openWallet } =
+  const { initiaAddress, username, openConnect, openWallet, openBridge } =
     useInterwovenKit();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -121,6 +121,20 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
+          {initiaAddress && (
+            <button
+              type="button"
+              onClick={() =>
+                openBridge({
+                  srcChainId: "initiation-2",
+                  srcDenom: "uinit",
+                })
+              }
+              className="shrink-0 border-2 border-border bg-secondary font-body text-sm font-bold shadow-neo-sm transition-all hover:neo-press px-4 py-2"
+            >
+              Bridge
+            </button>
+          )}
           <NavbarWallet {...walletProps} />
         </div>
 
@@ -154,6 +168,21 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
+          {initiaAddress && (
+            <button
+              type="button"
+              onClick={() => {
+                openBridge({
+                  srcChainId: "initiation-2",
+                  srcDenom: "uinit",
+                });
+                closeMobile();
+              }}
+              className={navLinkClass}
+            >
+              Bridge
+            </button>
+          )}
         </div>
       </div>
     </nav>

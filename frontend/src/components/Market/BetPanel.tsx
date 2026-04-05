@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useBet } from "@/hooks/useBet";
 import { type MarketInfo } from "@/hooks/useMarkets";
-import { formatGas, getMarketStatus } from "@/lib/utils";
+import { formatMin, getMarketStatus } from "@/lib/utils";
 import { CHAIN_ID } from "@/lib/contracts";
 
 interface BetPanelProps {
@@ -13,7 +13,7 @@ interface BetPanelProps {
 
 export default function BetPanel({ market }: BetPanelProps) {
   const { initiaAddress, openConnect, autoSign } = useInterwovenKit();
-  const { placeBet } = useBet(market.address);
+  const { placeBet } = useBet(market.marketId);
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +30,14 @@ export default function BetPanel({ market }: BetPanelProps) {
       } else {
         // @ts-expect-error - autoSign.enable type broken in initia sdk
         await autoSign.enable(CHAIN_ID, {
-          permissions: ["/minievm.evm.v1.MsgCall"],
+          permissions: ["/initia.move.v1.MsgExecute"],
         });
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.message.includes("authorization not found")) {
         // @ts-expect-error - autoSign.enable type broken in initia sdk
         await autoSign.enable(CHAIN_ID, {
-          permissions: ["/minievm.evm.v1.MsgCall"],
+          permissions: ["/initia.move.v1.MsgExecute"],
         });
       }
     } finally {
@@ -101,10 +101,10 @@ export default function BetPanel({ market }: BetPanelProps) {
       <div className="mt-4">
         <div className="flex justify-between font-body text-xs font-bold">
           <span className="text-green-700">
-            YES {formatGas(market.longPool)} GAS
+            YES {formatMin(market.longPool)} MIN
           </span>
           <span className="text-red-600">
-            NO {formatGas(market.shortPool)} GAS
+            NO {formatMin(market.shortPool)} MIN
           </span>
         </div>
         <div className="mt-1 flex h-5 border-2 border-border">
@@ -126,7 +126,7 @@ export default function BetPanel({ market }: BetPanelProps) {
       {/* Amount input */}
       <div className="mt-4">
         <label htmlFor="amount" className="font-body text-sm font-bold">
-          Amount (GAS)
+          Amount (MIN)
         </label>
         <div className="mt-1 flex border-2 border-border">
           <input
@@ -141,7 +141,7 @@ export default function BetPanel({ market }: BetPanelProps) {
             className="flex-1 bg-background px-3 py-2 font-body text-sm font-semibold outline-none placeholder:text-muted-foreground disabled:opacity-50"
           />
           <span className="flex items-center bg-muted px-3 font-body text-sm font-bold">
-            GAS
+            MIN
           </span>
         </div>
       </div>

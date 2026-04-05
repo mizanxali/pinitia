@@ -10,7 +10,7 @@ import {
 } from "./utils/poster.js";
 
 interface ResolvableMarket {
-  address: string;
+  marketId: number;
   marketType: number;
   placeId: string;
   target: bigint;
@@ -21,22 +21,22 @@ async function run() {
   console.log(`[${new Date().toISOString()}] Oracle run started`);
 
   // 1. Get all unique placeIds from active markets
-  const marketAddresses = await getActiveMarkets();
-  console.log(`Found ${marketAddresses.length} active markets`);
+  const marketIds = await getActiveMarkets();
+  console.log(`Found ${marketIds.length} active markets`);
 
   const placeIds = new Set<string>();
   const resolvablePlaceIds = new Set<string>();
   const resolvableMarkets: ResolvableMarket[] = [];
   const now = Math.floor(Date.now() / 1000);
 
-  for (const addr of marketAddresses) {
-    const info = await getMarketInfo(addr);
+  for (const marketId of marketIds) {
+    const info = await getMarketInfo(marketId);
     if (info.resolved) continue;
     placeIds.add(info.placeId);
     if (now >= info.resolveDate) {
       resolvablePlaceIds.add(info.placeId);
       resolvableMarkets.push({
-        address: addr,
+        marketId,
         marketType: info.marketType,
         placeId: info.placeId,
         target: info.target,
@@ -50,7 +50,6 @@ async function run() {
   );
 
   // 2. Fetch data for each place and write snapshots
-  // Track latest review counts for follow-up market creation
   const latestReviewCounts = new Map<string, number>();
 
   for (const placeId of placeIds) {
@@ -64,19 +63,19 @@ async function run() {
 
       // 3. Post on-chain only for resolvable markets
       if (resolvablePlaceIds.has(placeId)) {
-        await postOnChain(data);
+        postOnChain(data);
       }
     } catch (err) {
       console.error(`Error processing ${placeId}:`, err);
 
-      // Fallback: try latest Supabase snapshot for on-chain posting
+      // Fallback: try latest DB snapshot for on-chain posting
       if (resolvablePlaceIds.has(placeId)) {
         try {
           const snapshot = await getLatestSnapshot(placeId);
           if (snapshot) {
             console.log(`Using fallback snapshot for ${placeId}`);
             latestReviewCounts.set(placeId, snapshot.review_count);
-            await postOnChain({
+            postOnChain({
               placeId,
               rating: Number(snapshot.rating),
               reviewCount: snapshot.review_count,
@@ -94,13 +93,13 @@ async function run() {
     console.log(`\nCreating follow-up markets...`);
     for (const m of resolvableMarkets) {
       try {
-        const longWins = await getMarketResult(m.address);
+        const longWins = await getMarketResult(m.marketId);
         const reviewCount =
           latestReviewCounts.get(m.placeId) ?? Number(m.initialReviewCount);
-        await createFollowUpMarket(m.address, m, longWins, reviewCount);
+        createFollowUpMarket(m.marketId, m, longWins, reviewCount);
       } catch (err: any) {
         console.error(
-          `  Follow-up check failed for ${m.address}:`,
+          `  Follow-up check failed for market #${m.marketId}:`,
           err.message?.slice(0, 100),
         );
       }

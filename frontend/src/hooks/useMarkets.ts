@@ -1,16 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { createPublicClient, http } from "viem";
-import { MarketFactoryABI, MarketABI } from "@/lib/abi";
-import { MARKET_FACTORY_ADDRESS, MINITIA_RPC_URL } from "@/lib/contracts";
-
-const client = createPublicClient({
-  transport: http(MINITIA_RPC_URL),
-});
+import { moveView, encodeU64Arg, encodeStringArg, parseU64 } from "@/lib/move";
 
 export interface MarketInfo {
-  address: `0x${string}`;
+  marketId: number;
   marketType: number;
   placeId: string;
   target: bigint;
@@ -24,50 +18,27 @@ export interface MarketInfo {
   longWins: boolean;
 }
 
-async function fetchMarketInfo(
-  marketAddress: `0x${string}`,
-): Promise<MarketInfo> {
-  const result = (await client.readContract({
-    address: marketAddress,
-    abi: MarketABI,
-    functionName: "getMarketInfo",
-  })) as [
-    number,
-    string,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    bigint,
-    boolean,
-  ];
-
-  const resolved = result[9];
-
-  let longWins = false;
-  if (resolved) {
-    longWins = (await client.readContract({
-      address: marketAddress,
-      abi: MarketABI,
-      functionName: "longWins",
-    })) as boolean;
-  }
+async function fetchMarketInfo(marketId: number): Promise<MarketInfo> {
+  // get_market_info returns (u8, String, u64, u64, u64, u64, u64, u64, u64, bool, bool)
+  const result = await moveView(
+    "get_market_info",
+    [],
+    [encodeU64Arg(marketId)],
+  );
 
   return {
-    address: marketAddress,
-    marketType: result[0],
+    marketId,
+    marketType: Number(result[0]),
     placeId: result[1],
-    target: result[2],
-    resolveDate: result[3],
-    longPool: result[4],
-    shortPool: result[5],
-    initialReviewCount: result[6],
-    finalRating: result[7],
-    finalReviewCount: result[8],
-    resolved,
-    longWins,
+    target: parseU64(result[2]),
+    resolveDate: parseU64(result[3]),
+    longPool: parseU64(result[4]),
+    shortPool: parseU64(result[5]),
+    initialReviewCount: parseU64(result[6]),
+    finalRating: parseU64(result[7]),
+    finalReviewCount: parseU64(result[8]),
+    resolved: String(result[9]) === "true",
+    longWins: String(result[10]) === "true",
   };
 }
 
@@ -75,23 +46,20 @@ export function useActiveMarkets() {
   return useQuery({
     queryKey: ["activeMarkets"],
     queryFn: async () => {
-      const addresses = (await client.readContract({
-        address: MARKET_FACTORY_ADDRESS,
-        abi: MarketFactoryABI,
-        functionName: "getActiveMarkets",
-      })) as `0x${string}`[];
-
-      const markets = await Promise.all(addresses.map(fetchMarketInfo));
+      // get_active_markets returns vector<u64>
+      const result = await moveView("get_active_markets");
+      const marketIds = (result as unknown as string[]).map(Number);
+      const markets = await Promise.all(marketIds.map(fetchMarketInfo));
       return markets;
     },
     refetchInterval: 30_000,
   });
 }
 
-export function useMarketInfo(address: `0x${string}`) {
+export function useMarketInfo(marketId: number) {
   return useQuery({
-    queryKey: ["marketInfo", address],
-    queryFn: () => fetchMarketInfo(address),
+    queryKey: ["marketInfo", marketId],
+    queryFn: () => fetchMarketInfo(marketId),
     refetchInterval: 15_000,
   });
 }
@@ -100,14 +68,13 @@ export function usePlaceMarkets(placeId: string) {
   return useQuery({
     queryKey: ["placeMarkets", placeId],
     queryFn: async () => {
-      const addresses = (await client.readContract({
-        address: MARKET_FACTORY_ADDRESS,
-        abi: MarketFactoryABI,
-        functionName: "getMarketsByPlace",
-        args: [placeId],
-      })) as `0x${string}`[];
-
-      return Promise.all(addresses.map(fetchMarketInfo));
+      const result = await moveView(
+        "get_markets_by_place",
+        [],
+        [encodeStringArg(placeId)],
+      );
+      const marketIds = (result as unknown as string[]).map(Number);
+      return Promise.all(marketIds.map(fetchMarketInfo));
     },
     refetchInterval: 30_000,
   });

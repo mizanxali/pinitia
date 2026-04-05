@@ -10,12 +10,15 @@ export function shortenAddress(address: string, chars = 4): string {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
 
-export function formatGas(wei: bigint): string {
-  const eth = Number(wei) / 1e18;
-  if (eth >= 1) return eth.toFixed(2);
-  if (eth >= 0.01) return eth.toFixed(4);
-  return eth.toFixed(6);
+export function formatMin(umin: bigint): string {
+  const min = Number(umin) / 1e6;
+  if (min >= 1) return min.toFixed(2);
+  if (min >= 0.01) return min.toFixed(4);
+  return min.toFixed(6);
 }
+
+/** @deprecated Use formatMin instead */
+export const formatGas = formatMin;
 
 export function formatRating(scaled: bigint | number): string {
   return (Number(scaled) / 100).toFixed(1);

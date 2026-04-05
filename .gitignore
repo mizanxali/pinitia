@@ -5,6 +5,11 @@ dist/
 .DS_Store
 
 # contracts
+contracts/build/
+contracts/deps/movevm/*
+!contracts/deps/movevm/precompile/
+contracts/deps/movevm/precompile/*
+!contracts/deps/movevm/precompile/modules/
 cache/
 out/
 .vscode

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { type MarketInfo } from "@/hooks/useMarkets";
 import {
-  formatGas,
+  formatMin,
   formatRating,
   getCountdown,
   getMarketStatus,
@@ -27,7 +27,7 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
       : `Will this place have a rating of ${formatRating(market.target)}?`;
 
   return (
-    <Link href={`/market/${market.address}`}>
+    <Link href={`/market/${market.marketId}`}>
       <div className="group cursor-pointer border-2 border-border bg-card p-4 shadow-neo-sm transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-neo-pressed">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -67,10 +67,10 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
         <div className="mt-3">
           <div className="flex justify-between font-body text-xs font-semibold">
             <span className="text-green-700">
-              YES {formatGas(market.longPool)}
+              YES {formatMin(market.longPool)}
             </span>
             <span className="text-red-600">
-              NO {formatGas(market.shortPool)}
+              NO {formatMin(market.shortPool)}
             </span>
           </div>
           <div className="mt-1 flex h-3 border-2 border-border">
@@ -84,7 +84,7 @@ export default function MarketCard({ market, showPlaceId }: MarketCardProps) {
             />
           </div>
           <p className="mt-1 text-center font-body text-xs font-bold text-muted-foreground">
-            Total: {formatGas(totalPool)} GAS
+            Total: {formatMin(totalPool)} MIN
           </p>
         </div>
 

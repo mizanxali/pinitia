@@ -3,17 +3,11 @@
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { useActiveMarkets, type MarketInfo } from "@/hooks/useMarkets";
 import { useQuery } from "@tanstack/react-query";
-import { createPublicClient, http } from "viem";
-import { MarketABI } from "@/lib/abi";
-import { MINITIA_RPC_URL } from "@/lib/contracts";
+import { moveView, encodeU64Arg, encodeAddressArg, parseU64 } from "@/lib/move";
 import { useClaim } from "@/hooks/useClaim";
-import { formatGas, getMarketStatus, formatRating } from "@/lib/utils";
+import { formatMin, getMarketStatus, formatRating } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
-
-const client = createPublicClient({
-  transport: http(MINITIA_RPC_URL),
-});
 
 interface PositionWithMarket {
   market: MarketInfo;
@@ -22,8 +16,8 @@ interface PositionWithMarket {
   claimable: bigint;
 }
 
-function ClaimButton({ marketAddress }: { marketAddress: `0x${string}` }) {
-  const { claim } = useClaim(marketAddress);
+function ClaimButton({ marketId }: { marketId: number }) {
+  const { claim } = useClaim(marketId);
   const [loading, setLoading] = useState(false);
 
   return (
@@ -46,37 +40,41 @@ function ClaimButton({ marketAddress }: { marketAddress: `0x${string}` }) {
 }
 
 export default function PortfolioContent() {
-  const {
-    initiaAddress,
-    address: hexAddress,
-    openConnect,
-  } = useInterwovenKit();
+  const { initiaAddress, openConnect } = useInterwovenKit();
   const { data: markets } = useActiveMarkets();
 
   const { data: positions, isLoading } = useQuery({
-    queryKey: ["allPositions", hexAddress, markets?.map((m) => m.address)],
+    queryKey: ["allPositions", initiaAddress, markets?.map((m) => m.marketId)],
     queryFn: async (): Promise<PositionWithMarket[]> => {
-      if (!markets || !hexAddress) return [];
+      if (!markets || !initiaAddress) return [];
       const results = await Promise.all(
         markets.map(async (market) => {
-          const result = (await client.readContract({
-            address: market.address,
-            abi: MarketABI,
-            functionName: "getUserPosition",
-            args: [hexAddress as `0x${string}`],
-          })) as [bigint, bigint, bigint];
+          try {
+            const result = await moveView(
+              "get_user_position",
+              [],
+              [encodeU64Arg(market.marketId), encodeAddressArg(initiaAddress)],
+            );
 
-          return {
-            market,
-            longAmount: result[0],
-            shortAmount: result[1],
-            claimable: result[2],
-          };
+            return {
+              market,
+              longAmount: parseU64(result[0]),
+              shortAmount: parseU64(result[1]),
+              claimable: parseU64(result[2]),
+            };
+          } catch {
+            return {
+              market,
+              longAmount: 0n,
+              shortAmount: 0n,
+              claimable: 0n,
+            };
+          }
         }),
       );
       return results.filter((p) => p.longAmount > 0n || p.shortAmount > 0n);
     },
-    enabled: !!hexAddress && !!markets,
+    enabled: !!initiaAddress && !!markets,
     refetchInterval: 30_000,
   });
 
@@ -120,13 +118,13 @@ export default function PortfolioContent() {
             Total Invested
           </p>
           <p className="font-heading text-2xl font-extrabold">
-            {formatGas(totalInvested)} GAS
+            {formatMin(totalInvested)} MIN
           </p>
         </div>
         <div className="border-2 border-border bg-yellow-200 p-4 shadow-neo-sm">
           <p className="font-body text-xs text-muted-foreground">Claimable</p>
           <p className="font-heading text-2xl font-extrabold">
-            {formatGas(totalClaimable)} GAS
+            {formatMin(totalClaimable)} MIN
           </p>
         </div>
       </div>
@@ -182,12 +180,12 @@ export default function PortfolioContent() {
                 );
                 return (
                   <tr
-                    key={p.market.address}
+                    key={p.market.marketId}
                     className={i % 2 === 0 ? "bg-background" : "bg-muted/30"}
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/market/${p.market.address}`}
+                        href={`/market/${p.market.marketId}`}
                         className="font-body text-sm font-bold hover:underline"
                       >
                         {p.market.marketType === 0
@@ -220,17 +218,17 @@ export default function PortfolioContent() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-body text-sm font-bold text-green-700">
-                      {p.longAmount > 0n ? formatGas(p.longAmount) : "-"}
+                      {p.longAmount > 0n ? formatMin(p.longAmount) : "-"}
                     </td>
                     <td className="px-4 py-3 text-right font-body text-sm font-bold text-red-600">
-                      {p.shortAmount > 0n ? formatGas(p.shortAmount) : "-"}
+                      {p.shortAmount > 0n ? formatMin(p.shortAmount) : "-"}
                     </td>
                     <td className="px-4 py-3 text-right font-body text-sm font-extrabold">
-                      {p.claimable > 0n ? formatGas(p.claimable) : "-"}
+                      {p.claimable > 0n ? formatMin(p.claimable) : "-"}
                     </td>
                     <td className="px-4 py-3">
                       {p.claimable > 0n && (
-                        <ClaimButton marketAddress={p.market.address} />
+                        <ClaimButton marketId={p.market.marketId} />
                       )}
                     </td>
                   </tr>

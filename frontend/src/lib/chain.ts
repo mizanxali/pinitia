@@ -1,4 +1,4 @@
-import { CHAIN_ID, MINITIA_RPC_URL } from "./contracts";
+import { CHAIN_ID, REST_URL } from "./contracts";
 
 export const pinitiaChain = {
   chain_id: CHAIN_ID,
@@ -12,14 +12,13 @@ export const pinitiaChain = {
   },
   apis: {
     rpc: [{ address: "http://localhost:26657" }],
-    rest: [{ address: "http://localhost:1317" }],
+    rest: [{ address: REST_URL }],
     indexer: [{ address: "http://localhost:8080" }],
-    "json-rpc": [{ address: MINITIA_RPC_URL }],
   },
   fees: {
     fee_tokens: [
       {
-        denom: "GAS",
+        denom: "umin",
         fixed_min_gas_price: 0,
         low_gas_price: 0,
         average_gas_price: 0,
@@ -28,18 +27,18 @@ export const pinitiaChain = {
     ],
   },
   staking: {
-    staking_tokens: [{ denom: "GAS" }],
+    staking_tokens: [{ denom: "umin" }],
   },
   metadata: {
-    minitia: { type: "minievm" },
+    minitia: { type: "minimove" },
     is_l1: false,
   },
   native_assets: [
     {
-      denom: "GAS",
-      name: "Gas Token",
-      symbol: "GAS",
-      decimals: 18,
+      denom: "umin",
+      name: "Min Token",
+      symbol: "MIN",
+      decimals: 6,
     },
   ],
 };

@@ -1,36 +1,36 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { createPublicClient, http, parseAbiItem } from "viem";
-import { MINITIA_RPC_URL } from "@/lib/contracts";
-
-const client = createPublicClient({
-  transport: http(MINITIA_RPC_URL),
-});
+import { moveView, encodeU64Arg } from "@/lib/move";
 
 export interface BetEntry {
-  user: `0x${string}`;
+  user: string;
   isLong: boolean;
   amount: bigint;
 }
 
-export function useAllBets(marketAddress: `0x${string}`) {
+export function useAllBets(marketId: number) {
   return useQuery({
-    queryKey: ["allBets", marketAddress],
+    queryKey: ["allBets", marketId],
     queryFn: async (): Promise<BetEntry[]> => {
-      const logs = await client.getLogs({
-        address: marketAddress,
-        event: parseAbiItem(
-          "event BetPlaced(address indexed user, bool isLong, uint256 amount)",
-        ),
-        fromBlock: 0n,
-        toBlock: "latest",
-      });
+      // get_market_bets returns vector<BetEntry { user, is_long, amount }>
+      const result = await moveView(
+        "get_market_bets",
+        [],
+        [encodeU64Arg(marketId)],
+      );
 
-      return logs.map((log) => ({
-        user: log.args.user!.toLowerCase() as `0x${string}`,
-        isLong: log.args.isLong!,
-        amount: log.args.amount!,
+      // Result is an array of BetEntry structs serialized as JSON objects
+      return (
+        result as unknown as Array<{
+          user: string;
+          is_long: boolean;
+          amount: string;
+        }>
+      ).map((entry) => ({
+        user: entry.user,
+        isLong: entry.is_long,
+        amount: BigInt(entry.amount),
       }));
     },
     refetchInterval: 30_000,

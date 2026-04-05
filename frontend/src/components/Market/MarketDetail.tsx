@@ -10,7 +10,7 @@ import BetPanel from "@/components/Market/BetPanel";
 import SnapshotChart from "@/components/Market/SnapshotChart";
 import Link from "next/link";
 import {
-  formatGas,
+  formatMin,
   formatRating,
   getMarketStatus,
   shortenAddress,
@@ -47,23 +47,19 @@ function BetRow({
         </span>
       </td>
       <td className="px-3 py-2 text-right font-body text-sm font-bold">
-        {formatGas(bet.amount)} GAS
+        {formatMin(bet.amount)} MIN
       </td>
     </tr>
   );
 }
 
-export default function MarketDetail({ address }: { address: string }) {
-  const marketAddress = address as `0x${string}`;
-  const { data: market, isLoading } = useMarketInfo(marketAddress);
-  const { initiaAddress, address: hexAddress } = useInterwovenKit();
-  const { data: position } = useUserPosition(
-    marketAddress,
-    hexAddress as `0x${string}` | undefined,
-  );
-  const { claim } = useClaim(marketAddress);
+export default function MarketDetail({ marketId }: { marketId: number }) {
+  const { data: market, isLoading } = useMarketInfo(marketId);
+  const { initiaAddress } = useInterwovenKit();
+  const { data: position } = useUserPosition(marketId, initiaAddress);
+  const { claim } = useClaim(marketId);
   const { data: snapshots } = useSnapshotHistory(market?.placeId ?? "");
-  const { data: allBets } = useAllBets(marketAddress);
+  const { data: allBets } = useAllBets(marketId);
   const [claiming, setClaiming] = useState(false);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
 
@@ -162,7 +158,7 @@ export default function MarketDetail({ address }: { address: string }) {
               Total Pool
             </p>
             <p className="font-heading text-lg font-extrabold">
-              {formatGas(market.longPool + market.shortPool)} GAS
+              {formatMin(market.longPool + market.shortPool)} MIN
             </p>
           </div>
           <div className="border-2 border-border bg-background p-3">
@@ -240,7 +236,7 @@ export default function MarketDetail({ address }: { address: string }) {
                     <div className="flex justify-between border-2 border-border bg-green-100 px-3 py-2">
                       <span className="font-body text-sm font-bold">YES</span>
                       <span className="font-body text-sm font-bold">
-                        {formatGas(position.longAmount)} GAS
+                        {formatMin(position.longAmount)} MIN
                       </span>
                     </div>
                   )}
@@ -248,7 +244,7 @@ export default function MarketDetail({ address }: { address: string }) {
                     <div className="flex justify-between border-2 border-border bg-red-100 px-3 py-2">
                       <span className="font-body text-sm font-bold">NO</span>
                       <span className="font-body text-sm font-bold">
-                        {formatGas(position.shortAmount)} GAS
+                        {formatMin(position.shortAmount)} MIN
                       </span>
                     </div>
                   )}
@@ -261,7 +257,7 @@ export default function MarketDetail({ address }: { address: string }) {
                     >
                       {claiming
                         ? "Claiming..."
-                        : `Claim ${formatGas(position.claimable)} GAS`}
+                        : `Claim ${formatMin(position.claimable)} MIN`}
                     </button>
                   )}
                 </div>
@@ -295,8 +291,8 @@ export default function MarketDetail({ address }: { address: string }) {
                     key={i}
                     bet={bet}
                     isYou={
-                      !!hexAddress &&
-                      bet.user.toLowerCase() === hexAddress.toLowerCase()
+                      !!initiaAddress &&
+                      bet.user.toLowerCase() === initiaAddress.toLowerCase()
                     }
                   />
                 ))}

@@ -21,7 +21,7 @@ export default function VenueCard({ venue, markets }: VenueCardProps) {
     (sum, m) => sum + m.longPool + m.shortPool,
     0n,
   );
-  const poolDisplay = (Number(totalPool) / 1e18).toFixed(2);
+  const poolDisplay = (Number(totalPool) / 1e6).toFixed(2);
 
   return (
     <Link href={`/venue/${venue.placeId}`}>
@@ -51,7 +51,7 @@ export default function VenueCard({ venue, markets }: VenueCardProps) {
           )}
           {totalPool > 0n && (
             <span className="border-2 border-border bg-secondary px-2 py-0.5 text-xs font-bold">
-              {poolDisplay} GAS pool
+              {poolDisplay} MIN pool
             </span>
           )}
           {markets.length === 0 && (

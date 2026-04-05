@@ -1,0 +1,14 @@
+[package]
+name = "pinitia"
+version = "0.0.1"
+
+[dependencies]
+InitiaStdlib = { local = "deps/movevm/precompile/modules/initia_stdlib" }
+MoveStdlib = { local = "deps/movevm/precompile/modules/move_stdlib" }
+
+[addresses]
+pinitia = "_"
+std = "0x1"
+
+[dev-addresses]
+pinitia = "0x2"

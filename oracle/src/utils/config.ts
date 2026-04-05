@@ -7,10 +7,11 @@ function required(key: string): string {
 }
 
 export const config = {
-  oraclePrivateKey: required("ORACLE_PRIVATE_KEY"),
-  minitiaRpcUrl: required("MINITIA_RPC_URL"),
-  placeOracleAddress: required("PLACE_ORACLE_ADDRESS"),
-  marketFactoryAddress: required("MARKET_FACTORY_ADDRESS"),
+  moduleAddress: required("MODULE_ADDRESS"), // bech32 deployer address
+  moduleName: process.env.MODULE_NAME ?? "prediction_market",
+  oracleKeyName: required("ORACLE_KEY_NAME"), // keyring key name (e.g., "gas-station")
+  chainId: required("CHAIN_ID"),
+  restUrl: required("REST_URL"),
   googlePlacesApiKey: required("GOOGLE_PLACES_API_KEY"),
   databaseUrl: required("DATABASE_URL"),
 };

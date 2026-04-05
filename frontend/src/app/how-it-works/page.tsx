@@ -20,7 +20,7 @@ export default function HowItWorksPage() {
       number: "03",
       title: "Bet YES or NO",
       description:
-        "Think the target will be hit? Bet YES. Think it won't? Bet NO. Place your bet with GAS tokens - the more your conviction, the bigger the position.",
+        "Think the target will be hit? Bet YES. Think it won't? Bet NO. Place your bet with MIN tokens - the more your conviction, the bigger the position.",
       color: "bg-main",
     },
     {
@@ -135,7 +135,7 @@ export default function HowItWorksPage() {
             <h3 className="font-heading text-lg font-extrabold">Key Details</h3>
             <ul className="mt-3 space-y-2 font-body text-sm text-muted-foreground">
               <li>
-                <strong className="text-foreground">Bets:</strong> Native GAS
+                <strong className="text-foreground">Bets:</strong> Native MIN
                 token
               </li>
               <li>

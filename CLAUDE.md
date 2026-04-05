@@ -2,7 +2,7 @@
 
 Prediction markets on Google Maps venues. Bet LONG/SHORT on review velocity or rating movement. Binary parimutuel — winners split losers' pool minus 2% fee. Oracle uses Google Places API (`rating` + `userRatingCount`). Markets are operator-seeded (no user creation). Resolves on specific dates.
 
-Initia EVM appchain (Minitia) for INITIATE Hackathon 2026. Deadline: April 15. Track: Gaming & Consumer.
+Initia Move appchain (minimove) for INITIATE Hackathon 2026. Deadline: April 15. Track: Gaming & Consumer.
 
 ## Market Types
 
@@ -12,38 +12,57 @@ Initia EVM appchain (Minitia) for INITIATE Hackathon 2026. Deadline: April 15. T
 ## Architecture
 
 ```
-Oracle (hourly cron) → Google Places API → PostgreSQL via Drizzle (snapshots) + PlaceOracle contract
-Frontend reads: PostgreSQL via Drizzle (history, Next.js API routes), chain via viem (markets/positions), InterwovenKit (wallet + tx signing)
+Oracle (hourly cron) → Google Places API → PostgreSQL via Drizzle (snapshots) + Move module (post_place_data)
+Frontend reads: PostgreSQL via Drizzle (history, Next.js API routes), chain via REST view queries (markets/positions), InterwovenKit (wallet + tx signing)
 ```
 
-## Deployed Contracts (pinitia-1)
+## Move Module (pinitia-1)
 
-| Contract      | Address                                      |
-| ------------- | -------------------------------------------- |
-| MarketFactory | `0x231E3F6799cc3dEaD374d29844C237802031bEc0` |
-| PlaceOracle   | `0xA3A1F6ca609Ff930B400B73aCBacC4B771D1cda6` |
+Single module `pinitia::prediction_market` deployed at the module address. All state lives in a `MarketRegistry` resource at the deployer's address. Markets are identified by sequential `u64` IDs (not separate contract addresses).
 
-Wiring: MarketFactory.oracle → PlaceOracle contract. PlaceOracle.oracle → Gas Station EOA. Markets created by factory inherit PlaceOracle as their oracle.
+Source: `contracts/sources/prediction_market.move`
 
-## Contract ABIs
+### Entry Functions
 
-Full ABIs in `frontend/src/lib/abi.ts`. Key functions:
+- `initialize(account, oracle)` — one-time setup
+- `create_velocity_market(account, place_id, target, resolve_date, initial_review_count)`
+- `create_rating_market(account, place_id, target, resolve_date)`
+- `bet_long(account, module_addr, market_id, amount)` — withdraws native coin from sender
+- `bet_short(account, module_addr, market_id, amount)`
+- `post_place_data(account, module_addr, place_id, rating, review_count)` — oracle-only, auto-resolves eligible markets
+- `batch_post(account, module_addr, place_ids, ratings, review_counts)`
+- `claim(account, module_addr, market_id)`
+- `force_resolve_market(account, module_addr, market_id, rating, review_count)`
 
-**MarketFactory**: `getActiveMarkets() → address[]`, `getMarketsByPlace(placeId) → address[]`
+### View Functions
 
-**Market**: `betLong() payable`, `betShort() payable`, `claim()`, `getMarketInfo() → (marketType, placeId, target, resolveDate, longPool, shortPool, initialReviewCount, finalRating, finalReviewCount, resolved)`, `getUserPosition(address) → (longAmount, shortAmount, claimable)`
-
-**PlaceOracle**: `postPlaceData(placeId, rating, reviewCount)`, `batchPost(...)`
-
-Events: `BetPlaced(user, isLong, amount)`, `MarketResolved(longWins)`, `WinningsClaimed(user, amount)`, `PlaceDataPosted(placeId, rating, reviewCount)`
+- `get_market_info(market_id)` → `(market_type, place_id, target, resolve_date, long_pool, short_pool, initial_review_count, final_rating, final_review_count, resolved, long_wins)`
+- `get_active_markets()` → `vector<u64>`
+- `get_markets_by_place(place_id)` → `vector<u64>`
+- `get_user_position(market_id, user)` → `(long_amount, short_amount, claimable)`
+- `get_market_bets(market_id)` → `vector<BetEntry>` (replaces event log scanning)
 
 ### Conventions
 
-Bets: native GAS token (18 decimals). Ratings: scaled 1e2 (4.6 → 460). Review counts: unscaled. Resolve dates: unix timestamp. No custom indexer — use view functions + `eth_getLogs`.
+Bets: native `umin` token (6 decimals, displayed as MIN). Ratings: scaled 1e2 (4.6 → 460). Review counts: unscaled. Resolve dates: unix timestamp. No custom indexer — use view functions via REST API.
+
+### Building & Deploying
+
+```sh
+cd contracts
+minitiad move build --language-version=2.1 --named-addresses pinitia=<deployer_hex_addr>
+minitiad move deploy --named-addresses pinitia=<deployer_hex_addr> --from <key> --keyring-backend test --chain-id pinitia-1 --gas auto --gas-adjustment 1.4 --yes
+```
 
 ## Frontend
 
-Next.js 15 App Router, React 19, TypeScript, Tailwind, wagmi 2.17.2, viem, TanStack Query, Recharts, Drizzle ORM, `@initia/interwovenkit-react` 2.4.6.
+Next.js 15 App Router, React 19, TypeScript, Tailwind, TanStack Query, Recharts, Drizzle ORM, `@initia/interwovenkit-react` 2.4.6, `@initia/initia.js`, `@initia/initia.proto`.
+
+### Key Files
+
+- `lib/contracts.ts` — `MODULE_ADDRESS` (bech32), `MODULE_NAME`, `CHAIN_ID`, `REST_URL`
+- `lib/move.ts` — RESTClient singleton, BCS encoding helpers (`encodeAddressArg`, `encodeU64Arg`, `encodeStringArg`), `moveView` wrapper, `parseU64`, `formatMin`, `parseMin`
+- `lib/chain.ts` — Custom chain config for InterwovenKit (minimove, umin denom, 6 decimals)
 
 ### Provider Setup (`components/Providers.tsx`)
 
@@ -51,32 +70,43 @@ Order: `WagmiProvider` → `QueryClientProvider` → `InterwovenKitProvider`. In
 
 ### Pages
 
-| Route               | Description                                                                |
-| ------------------- | -------------------------------------------------------------------------- |
-| `/`                 | Curated venue cards grid (venues loaded from `places` table via API route) |
-| `/venue/[placeId]`  | Venue detail — rating/review charts, active markets, snapshot history      |
-| `/market/[address]` | Market detail — progress chart, pool bars, bet panel, user position, claim |
-| `/portfolio`        | User positions across all markets, claimable winnings                      |
-| `/leaderboard`      | Top traders by PnL                                                         |
+| Route              | Description                                                           |
+| ------------------ | --------------------------------------------------------------------- |
+| `/`                | Curated venue cards grid (venues loaded from `places` table via API)  |
+| `/venue/[placeId]` | Venue detail — rating/review charts, active markets, snapshot history |
+| `/market/[id]`     | Market detail — progress chart, pool bars, bet panel, position, claim |
+| `/portfolio`       | User positions across all markets, claimable winnings                 |
+| `/leaderboard`     | Top traders by PnL                                                    |
 
-### Transaction Pattern (EVM via InterwovenKit)
+### Transaction Pattern (Move via InterwovenKit)
 
-All write txs use `requestTxBlock` with `typeUrl: "/minievm.evm.v1.MsgCall"`. The message `value` object must include: `sender` (bech32, lowercased `initiaAddress`), `contractAddr` (hex), `input` (ABI-encoded via `encodeFunctionData`), `value` (stringified wei), `accessList: []`, `authList: []`. See `useBet.ts` and `useClaim.ts` for examples.
+All write txs use `requestTxBlock` with `typeUrl: "/initia.move.v1.MsgExecute"`. The message `value` uses `MsgExecute.fromPartial()` with: `sender` (bech32 `initiaAddress`), `moduleAddress` (bech32), `moduleName: "prediction_market"`, `functionName`, `typeArgs: []`, `args: [...]` (BCS-encoded). See `useBet.ts` and `useClaim.ts`.
 
-### Read Pattern (EVM via viem)
+### Read Pattern (REST view queries)
 
-All read calls use a standalone `publicClient` created with `createPublicClient({ transport: http(MINITIA_RPC_URL) })` — not wallet-injected. This avoids requiring an EVM browser extension. See `useMarkets.ts`.
+All read calls use `moveView()` from `lib/move.ts` which calls `POST /initia/move/v1/view` on the REST API. No viem or JSON-RPC needed. See `useMarkets.ts`.
 
 ### Design System
 
 Neobrutalism style: hard black borders (`border-2 border-border`), offset box shadows (`shadow-neo`), flat saturated colors, no gradients, no rounded corners. Fonts: Space Grotesk (headings) + Inter (body). LONG = green, SHORT = red, resolved = yellow.
 
-## Oracle Pipeline (hourly, already running)
+## Oracle Pipeline (hourly cron)
 
-1. Reads active place IDs from MarketFactory on-chain
+Uses `minitiad` CLI via `child_process.execSync` for on-chain writes. Uses REST API fetch for view queries. No ethers.js or private keys — uses local keyring (`--keyring-backend test`).
+
+1. Reads active market IDs from Move module via REST view query
 2. Fetches from Google Places API, writes to PostgreSQL `place_snapshots` via Drizzle
-3. If past resolveDate: posts on-chain via `PlaceOracle.postPlaceData()` which auto-resolves eligible markets
+3. If past resolveDate: posts on-chain via `minitiad tx move execute ... post_place_data` which auto-resolves eligible markets
 4. Auto-creates follow-up markets: target achieved → bump (+10 velocity, +0.1 rating); not achieved → same target. Resolves in 1 hour. Skips silently if max markets per place reached.
+
+### Oracle Config (env vars)
+
+`MODULE_ADDRESS` (bech32), `MODULE_NAME`, `ORACLE_KEY_NAME` (keyring key), `CHAIN_ID`, `REST_URL`, `GOOGLE_PLACES_API_KEY`, `DATABASE_URL`
+
+### Scripts
+
+- `npx tsx src/scripts/seed-all.ts` — seed places, markets, bets, and force-resolve
+- `npx tsx src/scripts/force-resolve.ts <MARKET_ID> [long|short]` — force-resolve a single market
 
 ## Database (PostgreSQL + Drizzle ORM)
 
@@ -90,21 +120,24 @@ Frontend reads via Next.js API routes (`/api/places`, `/api/snapshots`). Oracle 
 
 ## Common Issues
 
-- **Auto-sign not working**: `defaultChainId` must be `pinitia-1` (Cosmos ID), not EVM numeric ID.
-- **Sender must be bech32**: In `MsgCall`, use `initiaAddress` (bech32, lowercased) for `sender`, hex for `contractAddr`.
+- **Auto-sign not working**: `defaultChainId` must be `pinitia-1` (Cosmos ID), not EVM numeric ID. Auto-sign permission must include `/initia.move.v1.MsgExecute`.
+- **Sender must be bech32**: In `MsgExecute`, use `initiaAddress` (bech32) for `sender`. `moduleAddress` must also be bech32.
 - **`messages` not `msgs`**: `requestTxBlock` uses `messages` (plural). `msgs` causes `Cannot read properties of undefined`.
-- **eth_getLogs empty**: Local RPC may lag — poll with retry.
+- **MsgExecute requires typeArgs and args**: Always include `typeArgs: []` and `args: []` even if empty, or Amino conversion fails.
 - **Shadow/border mismatch**: All interactive elements must have `border-2 border-border` — don't mix rounded and flat styles.
-- **Chart gaps**: Oracle downtime — connect points with lines, don't break
-- **No venue photos**: Photo URLs are fetched from Google Places API during seeding and stored in `places.photo_url`. Falls back to 📍 placeholder if null.
+- **Chart gaps**: Oracle downtime — connect points with lines, don't break.
+- **No venue photos**: Photo URLs are fetched from Google Places API during seeding and stored in `places.photo_url`. Falls back to placeholder if null.
+- **Amount decimals**: umin uses 6 decimals (not 18). `parseMin(x)` = `x * 1e6`. `formatMin(x)` = `x / 1e6`.
 
 ## Submission Checklist
 
-- [x] Contracts deployed on pinitia-1
+- [x] Move module written and builds
 - [x] PostgreSQL schema via Drizzle ORM
-- [x] 10–15 markets seeded across multiple venues
+- [x] Frontend updated for Move (MsgExecute, REST views)
+- [x] Oracle updated for Move (minitiad CLI)
+- [ ] Deploy module to pinitia-1 and seed markets
 - [ ] Wallet connection + auto-signing (3+ bets without popup)
-- [x] Oracle resolves at least 1 market
+- [ ] Oracle resolves at least 1 market
 - [x] Progress chart with snapshot history
 - [ ] `.initia/submission.json`, README with submission section
 - [ ] Demo video (1-3 min): connect → auto-sign → browse → bet → resolve → claim

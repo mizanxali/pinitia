@@ -1,9 +1,8 @@
 /**
- * Master seed script: creates markets, places bets, then force-resolves
- * one random market per venue.
+ * Master seed script for Move-based prediction markets.
  *
  * Steps:
- *   1. Seed places — upsert venues to Supabase (name, address, photo, city, category)
+ *   1. Seed places — upsert venues to PostgreSQL
  *   2. Seed markets — 2 per ~50% of venues (VELOCITY + RATING)
  *   3. Seed bets — random LONG/SHORT bets on ~50% of active markets
  *   4. Force resolve — one random market per place
@@ -12,15 +11,17 @@
  *   npx tsx src/scripts/seed-all.ts
  *   npx tsx src/scripts/seed-all.ts --bets 5 --max-amount 2
  */
-/** biome-ignore-all lint/style/noNonNullAssertion: it's fine - it's just a seed script */
-/** biome-ignore-all lint/suspicious/noExplicitAny: it's fine - it's just a seed script */
 import { readFileSync } from "node:fs";
-import { ethers } from "ethers";
-import { MarketFactoryABI, MarketABI, PlaceOracleABI } from "../utils/abis.js";
+import { execSync } from "node:child_process";
 import { config } from "../utils/config.js";
 import { fetchPlaceData, fetchPlaceDetails } from "../utils/fetcher.js";
 import { writePlace, writeSnapshot } from "../utils/db.js";
 import { PLACE_TYPE_TO_CATEGORY } from "../utils/place-types.js";
+import {
+  getActiveMarkets,
+  getMarketInfo,
+  getMarketResult,
+} from "../utils/poster.js";
 
 interface VenueEntry {
   placeId: string;
@@ -31,13 +32,13 @@ interface VenueEntry {
 // --- CLI args ---
 const args = process.argv.slice(2);
 let maxBetsPerMarket = 3;
-let minAmountEth = 1;
-let maxAmountEth = 3;
+let minAmountMin = 1;
+let maxAmountMin = 3;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--bets") maxBetsPerMarket = Number(args[++i]);
-  else if (args[i] === "--max-amount") maxAmountEth = Number(args[++i]);
-  else if (args[i] === "--min-amount") minAmountEth = Number(args[++i]);
+  else if (args[i] === "--max-amount") maxAmountMin = Number(args[++i]);
+  else if (args[i] === "--min-amount") minAmountMin = Number(args[++i]);
 }
 
 // --- Constants ---
@@ -46,33 +47,17 @@ const RATING_OFFSET = 0.1;
 const MAX_RATING_SCALED = 500;
 const RESOLVE_HOURS = 1;
 
-// --- Shared setup ---
-const provider = new ethers.JsonRpcProvider(config.minitiaRpcUrl);
-const wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
-const factory = new ethers.Contract(
-  config.marketFactoryAddress,
-  MarketFactoryABI,
-  wallet,
-);
-const oracle = new ethers.Contract(
-  config.placeOracleAddress,
-  PlaceOracleABI,
-  wallet,
-);
-
 // --- Helpers ---
 function randBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function randAmount(): string {
-  const minMilli = Math.round(minAmountEth * 1000);
-  const maxMilli = Math.round(maxAmountEth * 1000);
-  const milli = randBetween(minMilli, maxMilli);
-  return (milli / 1000).toFixed(3);
+function randAmount(): number {
+  const minMicro = Math.round(minAmountMin * 1e6);
+  const maxMicro = Math.round(maxAmountMin * 1e6);
+  return randBetween(minMicro, maxMicro);
 }
 
-/** Shuffle array in place (Fisher-Yates) and return first n elements */
 function pickRandom<T>(arr: T[], ratio = 0.5): T[] {
   const shuffled = [...arr];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -82,8 +67,29 @@ function pickRandom<T>(arr: T[], ratio = 0.5): T[] {
   return shuffled.slice(0, Math.max(1, Math.ceil(arr.length * ratio)));
 }
 
+function moveExecute(
+  functionName: string,
+  moveArgs: string[],
+  fromKey?: string,
+): string {
+  const argsJson = JSON.stringify(moveArgs);
+  const from = fromKey ?? config.oracleKeyName;
+  const cmd =
+    `minitiad tx move execute ${config.moduleAddress} ${config.moduleName} ${functionName} ` +
+    `--args '${argsJson}' ` +
+    `--from ${from} --keyring-backend test ` +
+    `--chain-id ${config.chainId} ` +
+    `--gas auto --gas-adjustment 1.4 --yes -o json`;
+  console.log(`  > ${cmd.slice(0, 120)}...`);
+  return execSync(cmd, { encoding: "utf-8", timeout: 30_000 }).trim();
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // ============================================================
-// STEP 1: Seed Places (Supabase) — parallel API + DB writes
+// STEP 1: Seed Places
 // ============================================================
 async function seedPlaces(): Promise<VenueEntry[]> {
   const venues: VenueEntry[] = JSON.parse(
@@ -94,13 +100,10 @@ async function seedPlaces(): Promise<VenueEntry[]> {
   console.log("║        STEP 1: SEED PLACES           ║");
   console.log("╚══════════════════════════════════════╝");
   console.log(`Venues: ${venues.length}`);
-  console.log();
 
   const results = await Promise.allSettled(
     venues.map(async (venue) => {
       const data = await fetchPlaceDetails(venue.placeId);
-
-      // Write place + current snapshot
       await Promise.all([
         writePlace(
           venue.placeId,
@@ -113,64 +116,42 @@ async function seedPlaces(): Promise<VenueEntry[]> {
         writeSnapshot(venue.placeId, data.rating, data.reviewCount),
       ]);
 
-      // Generate 5 fake historical snapshots (each 1 hour apart going back)
+      // Generate historical snapshots
       const now = Date.now();
       let histRating = data.rating;
       let histReviews = data.reviewCount;
-      const reviewDecrements = [1, 2, 5, 10];
-
       for (let i = 1; i <= 5; i++) {
         const fetchedAt = new Date(now - i * 60 * 60 * 1000).toISOString();
-        // Rating: keep same or decrease by 0.1
-        if (Math.random() < 0.5 && histRating >= 0.1) {
+        if (Math.random() < 0.5 && histRating >= 0.1)
           histRating = Math.round((histRating - 0.1) * 10) / 10;
-        }
-        // Reviews: decrease by 1, 2, 5, or 10
-        const dec =
-          reviewDecrements[Math.floor(Math.random() * reviewDecrements.length)];
+        const dec = [1, 2, 5, 10][Math.floor(Math.random() * 4)];
         histReviews = Math.max(0, histReviews - dec);
-
         await writeSnapshot(venue.placeId, histRating, histReviews, fetchedAt);
       }
-
       console.log(
-        `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount} (+5 historical) ✓`,
+        `  ${data.name}: rating=${data.rating}, reviews=${data.reviewCount} ✓`,
       );
     }),
   );
 
   const saved = results.filter((r) => r.status === "fulfilled").length;
-  const failed = results.filter((r) => r.status === "rejected");
-  for (const f of failed) {
-    console.log(
-      `  FAILED: ${(f as PromiseRejectedResult).reason?.message?.slice(0, 80)}`,
-    );
-  }
   console.log(`\nPlaces saved: ${saved}/${venues.length}`);
   return venues;
 }
 
 // ============================================================
-// STEP 2: Seed Markets (~50% of venues, sequential txs)
+// STEP 2: Seed Markets
 // ============================================================
-async function seedMarkets(
-  venues: VenueEntry[],
-): Promise<Map<string, string[]>> {
+async function seedMarkets(venues: VenueEntry[]): Promise<void> {
   const selected = pickRandom(venues);
   const resolveDate = Math.floor(Date.now() / 1000) + RESOLVE_HOURS * 60 * 60;
-  const resolveTime = new Date(resolveDate * 1000).toISOString();
-  const balance = await provider.getBalance(wallet.address);
 
   console.log("\n╔══════════════════════════════════════╗");
   console.log("║        STEP 2: SEED MARKETS          ║");
   console.log("╚══════════════════════════════════════╝");
-  console.log(`Wallet:     ${wallet.address}`);
-  console.log(`Balance:    ${ethers.formatEther(balance)} GAS`);
-  console.log(`Venues:     ${selected.length}/${venues.length} (random 50%)`);
-  console.log(`Resolves:   ${resolveTime} (in ${RESOLVE_HOURS}h)`);
-  console.log();
+  console.log(`Venues: ${selected.length}/${venues.length}`);
+  console.log(`Resolves: ${new Date(resolveDate * 1000).toISOString()}`);
 
-  // Pre-fetch all Google Places data in parallel
   const placeDataMap = new Map<
     string,
     { rating: number; reviewCount: number }
@@ -182,324 +163,171 @@ async function seedMarkets(
     }),
   );
 
-  const marketsByPlace = new Map<string, string[]>();
   let created = 0;
-
-  // Market creation txs must be sequential (same wallet nonce)
   for (const venue of selected) {
-    const placeId = venue.placeId;
-    const data = placeDataMap.get(placeId)!;
-    console.log(`\n--- ${venue.name} (${placeId}) ---`);
-    console.log(`  rating=${data.rating}, reviews=${data.reviewCount}`);
-
-    const placeMarkets: string[] = [];
+    const data = placeDataMap.get(venue.placeId)!;
+    console.log(`\n--- ${venue.name} ---`);
 
     // VELOCITY market
     try {
-      const tx = await factory.createVelocityMarket(
-        placeId,
-        VELOCITY_TARGET_OFFSET,
-        resolveDate,
-        data.reviewCount,
-      );
-      const receipt = await tx.wait();
-      const log = receipt.logs.find(
-        (l: any) => l.fragment?.name === "MarketCreated",
-      );
-      const addr = log?.args?.[0] ?? "unknown";
-      console.log(
-        `  VELOCITY  target=+${VELOCITY_TARGET_OFFSET} reviews  ->  ${addr}`,
-      );
-      placeMarkets.push(addr);
+      moveExecute("create_velocity_market", [
+        `string:${venue.placeId}`,
+        `u64:${VELOCITY_TARGET_OFFSET}`,
+        `u64:${resolveDate}`,
+        `u64:${data.reviewCount}`,
+      ]);
+      console.log(`  VELOCITY target=+${VELOCITY_TARGET_OFFSET} ✓`);
       created++;
+      await sleep(2000);
     } catch (err: any) {
-      console.log(`  VELOCITY  FAILED: ${err.message?.slice(0, 80)}`);
+      console.log(`  VELOCITY FAILED: ${err.message?.slice(0, 80)}`);
     }
 
     // RATING market
     const ratingTarget = Math.min(data.rating + RATING_OFFSET, 5.0);
     const scaledTarget = Math.round(ratingTarget * 100);
-
     if (scaledTarget <= MAX_RATING_SCALED) {
       try {
-        const tx = await factory.createRatingMarket(
-          placeId,
-          scaledTarget,
-          resolveDate,
-        );
-        const receipt = await tx.wait();
-        const log = receipt.logs.find(
-          (l: any) => l.fragment?.name === "MarketCreated",
-        );
-        const addr = log?.args?.[0] ?? "unknown";
-        console.log(
-          `  RATING    target>=${ratingTarget.toFixed(2)} (${scaledTarget})  ->  ${addr}`,
-        );
-        placeMarkets.push(addr);
+        moveExecute("create_rating_market", [
+          `string:${venue.placeId}`,
+          `u64:${scaledTarget}`,
+          `u64:${resolveDate}`,
+        ]);
+        console.log(`  RATING target>=${ratingTarget.toFixed(2)} ✓`);
         created++;
+        await sleep(2000);
       } catch (err: any) {
-        console.log(`  RATING    FAILED: ${err.message?.slice(0, 80)}`);
+        console.log(`  RATING FAILED: ${err.message?.slice(0, 80)}`);
       }
-    }
-
-    if (placeMarkets.length > 0) {
-      marketsByPlace.set(placeId, placeMarkets);
     }
   }
 
   console.log(`\nMarkets created: ${created}`);
-  return marketsByPlace;
 }
 
 // ============================================================
-// STEP 3: Seed Bets (~50% of active markets)
-// Pre-fund all wallets sequentially, then place bets in parallel
+// STEP 3: Seed Bets
 // ============================================================
 async function seedBets(): Promise<void> {
   console.log("\n╔══════════════════════════════════════╗");
   console.log("║         STEP 3: SEED BETS            ║");
   console.log("╚══════════════════════════════════════╝");
-  console.log(`Max bets:  ${maxBetsPerMarket} per market`);
-  console.log(`Bet range: ${minAmountEth} - ${maxAmountEth} GAS`);
-  console.log();
+  console.log(`Max bets: ${maxBetsPerMarket} per market`);
+  console.log(`Bet range: ${minAmountMin}-${maxAmountMin} MIN`);
 
-  const allMarkets: string[] = await factory.getActiveMarkets();
-
-  if (allMarkets.length === 0) {
+  const allMarketIds = await getActiveMarkets();
+  if (allMarketIds.length === 0) {
     console.log("No active markets found.");
     return;
   }
 
-  const markets = pickRandom(allMarkets);
-  console.log(
-    `Selected ${markets.length}/${allMarkets.length} active market(s) (random 50%)\n`,
-  );
+  const selectedIds = pickRandom(allMarketIds);
+  console.log(`Selected ${selectedIds.length}/${allMarketIds.length} markets`);
 
-  // Fetch market info in parallel
-  const marketInfos = await Promise.all(
-    markets.map(async (addr) => {
-      const market = new ethers.Contract(addr, MarketABI, provider);
-      const info = await market.getMarketInfo();
-      return { addr, info };
-    }),
-  );
-
-  // Build bet plan: for each market, decide how many bets, amounts, sides
-  interface BetPlan {
-    marketAddr: string;
-    bets: { amount: string; value: bigint; isLong: boolean }[];
-  }
-
-  const plans: BetPlan[] = [];
-  for (const { addr, info } of marketInfos) {
-    const [marketType, placeId, , , , , , , , resolved] = info;
-    if (resolved) {
-      console.log(`--- ${addr}: already resolved, skipping ---`);
-      continue;
-    }
-
-    const isVelocity = Number(marketType) === 0;
-    console.log(
-      `--- ${addr} | ${isVelocity ? "VELOCITY" : "RATING"} | ${placeId} ---`,
-    );
+  let totalBets = 0;
+  for (const marketId of selectedIds) {
+    const info = await getMarketInfo(marketId);
+    if (info.resolved) continue;
 
     const numBets = randBetween(1, maxBetsPerMarket);
-    const bets = Array.from({ length: numBets }, () => {
+    console.log(`\n--- Market #${marketId} (${info.placeId}) ---`);
+
+    for (let b = 0; b < numBets; b++) {
       const amount = randAmount();
-      return {
-        amount,
-        value: ethers.parseEther(amount),
-        isLong: Math.random() < 0.5,
-      };
-    });
-    plans.push({ marketAddr: addr, bets });
-  }
+      const isLong = Math.random() < 0.5;
+      const func = isLong ? "bet_long" : "bet_short";
 
-  // Pre-fund all bet wallets sequentially (oracle wallet nonce must be serial)
-  interface FundedBet {
-    marketAddr: string;
-    betWallet: ethers.Wallet | ethers.HDNodeWallet;
-    amount: string;
-    value: bigint;
-    isLong: boolean;
-    transferAmount: bigint;
-  }
-
-  const gasPadding = ethers.parseEther("0.01");
-  const fundedBets: FundedBet[] = [];
-
-  console.log(
-    `\nFunding ${plans.reduce((s, p) => s + p.bets.length, 0)} wallets...`,
-  );
-  for (const plan of plans) {
-    for (const bet of plan.bets) {
-      const betWallet = ethers.Wallet.createRandom().connect(provider);
-      const transferAmount = bet.value + gasPadding;
       try {
-        const fundTx = await wallet.sendTransaction({
-          to: betWallet.address,
-          value: transferAmount,
-        });
-        await fundTx.wait();
-        fundedBets.push({
-          marketAddr: plan.marketAddr,
-          betWallet,
-          amount: bet.amount,
-          value: bet.value,
-          isLong: bet.isLong,
-          transferAmount,
-        });
+        moveExecute(func, [
+          `address:${config.moduleAddress}`,
+          `u64:${marketId}`,
+          `u64:${amount}`,
+        ]);
+        const side = isLong ? "LONG" : "SHORT";
+        console.log(`  ${side} ${(amount / 1e6).toFixed(2)} MIN ✓`);
+        totalBets++;
+        await sleep(2000);
       } catch (err: any) {
-        console.log(`  Fund FAILED: ${err.message?.slice(0, 60)}`);
+        console.log(`  BET FAILED: ${err.message?.slice(0, 60)}`);
       }
     }
   }
 
-  // Place all bets in parallel (each from a unique wallet — no nonce conflicts)
-  console.log(`Placing ${fundedBets.length} bets in parallel...`);
-  let totalBets = 0;
-  let totalSpent = 0n;
-
-  const betResults = await Promise.allSettled(
-    fundedBets.map(async (fb) => {
-      const market = new ethers.Contract(
-        fb.marketAddr,
-        MarketABI,
-        fb.betWallet,
-      );
-      const func = fb.isLong ? "betLong" : "betShort";
-      const tx = await market[func]({ value: fb.value });
-      await tx.wait();
-      return fb;
-    }),
-  );
-
-  for (const result of betResults) {
-    if (result.status === "fulfilled") {
-      const fb = result.value;
-      const side = fb.isLong ? "LONG" : "SHORT";
-      totalBets++;
-      totalSpent += fb.transferAmount;
-      console.log(
-        `  ${side} ${fb.amount} GAS on ${fb.marketAddr.slice(0, 10)}... | wallet: ${fb.betWallet.address.slice(0, 10)}...`,
-      );
-    } else {
-      console.log(`  BET FAILED: ${result.reason?.message?.slice(0, 60)}`);
-    }
-  }
-
   console.log(`\nTotal bets: ${totalBets}`);
-  console.log(`Total spent: ${ethers.formatEther(totalSpent)} GAS`);
 }
 
 // ============================================================
-// STEP 4: Force Resolve (one random market per place)
+// STEP 4: Force Resolve
 // ============================================================
-async function forceResolveOnePerPlace(
-  marketsByPlace: Map<string, string[]>,
-): Promise<void> {
+async function forceResolveOnePerPlace(): Promise<void> {
   console.log("\n╔══════════════════════════════════════╗");
   console.log("║    STEP 4: FORCE RESOLVE (1/place)   ║");
   console.log("╚══════════════════════════════════════╝\n");
 
-  // Pre-fetch all market info in parallel
-  const resolveTargets: {
-    placeId: string;
-    marketAddr: string;
-    info: any;
-  }[] = [];
+  const allMarketIds = await getActiveMarkets();
+  const placeToMarkets = new Map<string, number[]>();
 
-  const infoResults = await Promise.all(
-    [...marketsByPlace.entries()].map(async ([placeId, marketAddrs]) => {
-      const idx = Math.floor(Math.random() * marketAddrs.length);
-      const marketAddr = marketAddrs[idx];
-      const market = new ethers.Contract(marketAddr, MarketABI, provider);
-      const info = await market.getMarketInfo();
-      return { placeId, marketAddr, info };
-    }),
-  );
-  resolveTargets.push(...infoResults);
+  for (const marketId of allMarketIds) {
+    const info = await getMarketInfo(marketId);
+    if (info.resolved) continue;
+    const list = placeToMarkets.get(info.placeId) ?? [];
+    list.push(marketId);
+    placeToMarkets.set(info.placeId, list);
+  }
 
   let resolved = 0;
-
-  // Force-resolve txs must be sequential (same oracle wallet)
-  for (const { placeId, marketAddr, info } of resolveTargets) {
-    const [
-      marketType,
-      ,
-      target,
-      ,
-      longPool,
-      shortPool,
-      initialReviewCount,
-      ,
-      ,
-      alreadyResolved,
-    ] = info;
-
-    if (alreadyResolved) {
-      console.log(`${placeId}: ${marketAddr} already resolved, skipping`);
-      continue;
-    }
-
-    const isVelocity = Number(marketType) === 0;
+  for (const [placeId, marketIds] of placeToMarkets) {
+    const idx = Math.floor(Math.random() * marketIds.length);
+    const marketId = marketIds[idx];
+    const info = await getMarketInfo(marketId);
+    const isVelocity = info.marketType === 0;
     const side = Math.random() < 0.5 ? "long" : "short";
 
-    console.log(`--- ${placeId} ---`);
-    console.log(`  Market:  ${marketAddr}`);
-    console.log(`  Type:    ${isVelocity ? "VELOCITY" : "RATING"}`);
+    console.log(`--- ${placeId} | Market #${marketId} ---`);
     console.log(
-      `  Pools:   LONG ${ethers.formatEther(longPool)} | SHORT ${ethers.formatEther(shortPool)} GAS`,
+      `  Type: ${isVelocity ? "VELOCITY" : "RATING"} | Winner: ${side.toUpperCase()}`,
     );
-    console.log(`  Winner:  ${side.toUpperCase()}`);
 
     let rating: bigint;
     let reviewCount: bigint;
 
     if (side === "long") {
       if (isVelocity) {
-        reviewCount = BigInt(initialReviewCount) + BigInt(target) + 10n;
+        reviewCount = info.initialReviewCount + info.target + 10n;
         rating = 450n;
       } else {
-        rating = BigInt(target) + 10n;
-        reviewCount = BigInt(initialReviewCount) + 5n;
+        rating = info.target + 10n;
+        reviewCount = info.initialReviewCount + 5n;
       }
     } else {
       if (isVelocity) {
-        reviewCount = BigInt(initialReviewCount);
+        reviewCount = info.initialReviewCount;
         rating = 450n;
       } else {
-        rating = BigInt(target) - 10n;
-        reviewCount = BigInt(initialReviewCount) + 5n;
+        rating = info.target - 10n;
+        reviewCount = info.initialReviewCount + 5n;
       }
     }
 
     try {
-      const tx = await oracle.forceResolveMarket(
-        marketAddr,
-        rating,
-        reviewCount,
-      );
-      const receipt = await tx.wait();
-      console.log(`  Tx:      ${tx.hash}`);
-      console.log(`  Block:   ${receipt.blockNumber}`);
+      moveExecute("force_resolve_market", [
+        `address:${config.moduleAddress}`,
+        `u64:${marketId}`,
+        `u64:${rating.toString()}`,
+        `u64:${reviewCount.toString()}`,
+      ]);
+      console.log(`  Resolved ✓`);
 
-      const market = new ethers.Contract(marketAddr, MarketABI, provider);
-      const resolvedNow = await market.resolved();
-      const longWins = await market.longWins();
-      if (resolvedNow) {
-        console.log(`  Result:  ${longWins ? "LONG" : "SHORT"} wins`);
-        resolved++;
-      } else {
-        console.log(`  WARNING: Market still unresolved after tx`);
-      }
+      const longWins = await getMarketResult(marketId);
+      console.log(`  Result: ${longWins ? "LONG" : "SHORT"} wins`);
+      resolved++;
+      await sleep(2000);
     } catch (err: any) {
-      console.log(`  FAILED:  ${err.message?.slice(0, 80)}`);
+      console.log(`  FAILED: ${err.message?.slice(0, 80)}`);
     }
-    console.log();
   }
 
-  console.log(`Force-resolved: ${resolved} market(s)`);
+  console.log(`\nForce-resolved: ${resolved} market(s)`);
 }
 
 // ============================================================
@@ -507,27 +335,17 @@ async function forceResolveOnePerPlace(
 // ============================================================
 async function main() {
   console.log("========================================");
-  console.log("         PINITIA MASTER SEED");
+  console.log("      PINITIA MASTER SEED (Move)");
   console.log("========================================\n");
 
-  // Step 1: Seed places to Supabase
   const venues = await seedPlaces();
-
-  // Step 2: Create markets for ~50% of venues
-  const marketsByPlace = await seedMarkets(venues);
-
-  // Step 3: Seed bets on ~50% of active markets
+  await seedMarkets(venues);
   await seedBets();
-
-  // Step 4: Force resolve one market per place
-  await forceResolveOnePerPlace(marketsByPlace);
+  await forceResolveOnePerPlace();
 
   console.log("\n========================================");
   console.log("            ALL DONE!");
   console.log("========================================");
-  console.log(
-    "Refresh the frontend to see markets, bets, and resolved results.",
-  );
 }
 
 main().catch((err) => {

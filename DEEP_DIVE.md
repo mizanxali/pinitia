@@ -2,7 +2,7 @@
 
 **Prediction markets on real-world places.** Go LONG or SHORT on Google Maps venues — bet on whether a restaurant's reviews will surge or its rating will climb. Winners split the losers' pool. Oracle-resolved using live Google Places data.
 
-Built on an Initia EVM appchain (Minitia) for the **INITIATE Hackathon 2026** — Gaming & Consumer track.
+Built on an Initia Move appchain (minimove) for the **INITIATE Hackathon 2026** — Gaming & Consumer track.
 
 ---
 
@@ -13,7 +13,7 @@ Every Google Maps venue has a rating and review count that changes over time. Pi
 - **VELOCITY markets** — Will this place gain N+ new reviews by the resolve date?
 - **RATING markets** — Will this place's rating be at or above X.X by the resolve date?
 
-Pick a side (LONG or SHORT), place your bet in GAS tokens, and wait for the oracle to resolve. If you're right, you claim your share of the losing pool minus a 2% protocol fee.
+Pick a side (LONG or SHORT), place your bet in MIN tokens, and wait for the oracle to resolve. If you're right, you claim your share of the losing pool minus a 2% protocol fee.
 
 ### Why?
 
@@ -30,10 +30,10 @@ Pick a side (LONG or SHORT), place your bet in GAS tokens, and wait for the orac
 1. Browse curated venues on the home page
 2. Pick a market (e.g. "Will Toit gain 50+ reviews by April 10?")
 3. Connect your Initia wallet via InterwovenKit
-4. Go LONG (yes) or SHORT (no) — bet any amount of GAS
+4. Go LONG (yes) or SHORT (no) — bet any amount of MIN
 5. Oracle checks Google Places data hourly
 6. On the resolve date, the oracle posts final data on-chain
-7. Smart contract auto-resolves: LONG wins or SHORT wins
+7. Move module auto-resolves: LONG wins or SHORT wins
 8. Winners claim payouts — your bet + proportional share of the losing pool - 2% fee
 ```
 
@@ -59,32 +59,35 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
 ## Architecture
 
 ```
-┌──────────────────┐     ┌─────────────────────┐     ┌──────────────────┐
-│   Google Places   │────▶│    Oracle Service    │────▶│   PlaceOracle    │
-│       API         │     │  (hourly cron, bun)  │     │   (Solidity)     │
-└──────────────────┘     └──────┬────────────────┘     └───────┬──────────┘
-                                │                              │
-                                ▼                              ▼
-                         ┌──────────────┐              ┌──────────────────┐
-                         │  PostgreSQL   │              │  MarketFactory   │
-                         │  (Drizzle)    │              │   (Solidity)     │
-                         └──────┬────────┘              └───────┬──────────┘
+┌──────────────────┐     ┌─────────────────────┐     ┌──────────────────────┐
+│   Google Places   │────▶│    Oracle Service    │────▶│    Move Module       │
+│       API         │     │  (hourly cron, bun)  │     │ pinitia::prediction  │
+└──────────────────┘     └──────┬────────────────┘     │      _market         │
+                                │                      └───────┬──────────────┘
+                                ▼                              │
+                         ┌──────────────┐                      │
+                         │  PostgreSQL   │                      │
+                         │  (Drizzle)    │                      │
+                         └──────┬────────┘                      │
                                 │                              │
                                 ▼                              ▼
                          ┌─────────────────────────────────────────────────┐
                          │              Next.js Frontend                    │
-                         │  reads: PostgreSQL via API routes + chain/viem  │
+                         │  reads: PostgreSQL via API routes + REST views  │
                          │  writes: InterwovenKit (wallet + tx signing)    │
                          └─────────────────────────────────────────────────┘
 ```
 
 ### Components
 
-**Smart Contracts** (Solidity, Foundry) — `contracts/`
+**Move Module** — `contracts/sources/prediction_market.move`
 
-- `MarketFactory.sol` — Creates VELOCITY and RATING markets, tracks active markets per venue
-- `Market.sol` — Individual market logic: betting, resolution, payouts, 2% fee
-- `PlaceOracle.sol` — Receives Google Places data, auto-resolves eligible markets past their resolve date
+- Single module `pinitia::prediction_market` consolidating all market logic
+- `MarketRegistry` resource at the deployer's address holds all state
+- Markets identified by sequential `u64` IDs (not separate contract addresses)
+- Object-based vault pattern for holding native coins (FungibleAsset has no `store` ability)
+- Entry functions for market creation, betting, resolution, and claiming
+- View functions for querying market state, positions, and bet history
 
 **Frontend** (Next.js 15, React 19) — `frontend/`
 
@@ -98,7 +101,7 @@ The 2% fee is taken from the losing pool only and sent to the protocol.
 
 - Hourly cron fetching Google Places API data
 - Writes snapshots to PostgreSQL via Drizzle for frontend charts
-- Posts on-chain data via PlaceOracle when markets are past their resolve date
+- Posts on-chain data via `minitiad tx move execute` when markets are past their resolve date
 - Auto-creates follow-up markets after resolution: if target was achieved, bumps target (+10 velocity, +0.1 rating); if not, keeps same target. Follow-ups resolve in 1 hour.
 - Master seed script (`seed-all.ts`): seeds places to PostgreSQL, creates markets, places test bets, and force-resolves one market per venue
 
@@ -137,14 +140,14 @@ This turns an otherwise anonymous on-chain experience into a social one — you 
 Prediction markets require rapid, repeated transactions (browse → bet → browse → bet). Signing every single one via wallet popup kills the UX. Pinitia uses **Initia Auto-Sign** to eliminate friction after a one-time opt-in:
 
 1. User clicks the **Auto-Sign** toggle in the bet panel
-2. InterwovenKit creates a session key scoped to `"/minievm.evm.v1.MsgCall"` on `pinitia-1`
+2. InterwovenKit creates a session key scoped to `"/initia.move.v1.MsgExecute"` on `pinitia-1`
 3. All subsequent bets and claims are signed automatically — no popups
 4. User can disable auto-sign at any time from the same toggle
 
 ```typescript
-// Enable auto-sign for EVM calls on pinitia-1
+// Enable auto-sign for Move execution calls on pinitia-1
 await autoSign.enable(CHAIN_ID, {
-  permissions: ["/minievm.evm.v1.MsgCall"],
+  permissions: ["/initia.move.v1.MsgExecute"],
 });
 
 // Check status per chain
@@ -157,29 +160,78 @@ The toggle lives directly in the `BetPanel` component — green when active, gre
 
 ## Tech Stack
 
-| Layer     | Technology                                                                      |
-| --------- | ------------------------------------------------------------------------------- |
-| Chain     | Initia EVM appchain (Minitia) — `pinitia-1`                                     |
-| Contracts | Solidity 0.8.20, Foundry                                                        |
-| Frontend  | Next.js 15, React 19, TypeScript, Tailwind CSS                                  |
-| Web3      | wagmi 2.17.2, viem 2.47.6, @initia/interwovenkit-react 2.4.6                    |
-| Charts    | Recharts                                                                        |
-| Database  | PostgreSQL + Drizzle ORM (local Docker for dev)                                 |
-| Oracle    | bun + node-cron + ethers.js 6 + Google Places API                               |
-| Design    | Neobrutalism — hard borders, offset shadows, flat colors, Space Grotesk + Inter |
+| Layer    | Technology                                                                      |
+| -------- | ------------------------------------------------------------------------------- |
+| Chain    | Initia Move appchain (minimove) — `pinitia-1`                                   |
+| Module   | Move (Initia MoveVM), single `prediction_market` module                         |
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS                                  |
+| Web3     | @initia/interwovenkit-react 2.4.6, @initia/initia.js, @initia/initia.proto      |
+| Charts   | Recharts                                                                        |
+| Database | PostgreSQL + Drizzle ORM (local Docker for dev)                                 |
+| Oracle   | bun + node-cron + minitiad CLI + Google Places API                              |
+| Design   | Neobrutalism — hard borders, offset shadows, flat colors, Space Grotesk + Inter |
 
 ---
 
-## Deployed Contracts
+## Move Module
 
-Chain: **pinitia-1** (Initia EVM Minitia)
+Chain: **pinitia-1** (Initia minimove appchain)
 
-| Contract      | Address                                      |
-| ------------- | -------------------------------------------- |
-| MarketFactory | `0xE837306C9f53Dd3ABD6542B8Ec8477EA29488211` |
-| PlaceOracle   | `0x3cb12b7245176b36653a2c00f5F148b32e3c5afE` |
+Module: `pinitia::prediction_market` deployed at the module address (bech32 `init1...`).
 
-**Wiring**: MarketFactory's oracle → PlaceOracle contract. PlaceOracle's oracle → Gas Station EOA. Markets created by the factory inherit PlaceOracle as their oracle.
+All state lives in a single `MarketRegistry` resource:
+
+```move
+struct MarketRegistry has key {
+    markets: Table<u64, Market>,
+    place_markets: Table<String, vector<u64>>,
+    all_active_market_ids: vector<u64>,
+    next_market_id: u64,
+    owner: address,
+    oracle: address,
+    fee_balance: u64,
+    vault: Object<VaultTag>,
+}
+```
+
+### Entry Functions
+
+| Function                 | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `initialize`             | One-time setup, sets owner and oracle address           |
+| `create_velocity_market` | Create a review count velocity market                   |
+| `create_rating_market`   | Create a rating threshold market                        |
+| `bet_long`               | Place a LONG bet (withdraws umin from sender)           |
+| `bet_short`              | Place a SHORT bet (withdraws umin from sender)          |
+| `post_place_data`        | Oracle posts data, auto-resolves eligible markets       |
+| `batch_post`             | Batch version of post_place_data for multiple places    |
+| `claim`                  | Winners withdraw payout after resolution                |
+| `force_resolve_market`   | Owner-only override to resolve a market with given data |
+
+### View Functions
+
+| Function               | Returns                                           |
+| ---------------------- | ------------------------------------------------- |
+| `get_active_markets`   | `vector<u64>` — all active market IDs             |
+| `get_markets_by_place` | `vector<u64>` — markets for a specific venue      |
+| `get_market_info`      | Full market state (type, pools, target, resolved) |
+| `get_user_position`    | User's long/short amounts and claimable winnings  |
+| `get_market_bets`      | `vector<BetEntry>` — all bets on a market         |
+| `get_market_count`     | Total number of markets created                   |
+
+### Native Coin Handling
+
+Bets are placed in `umin` (6 decimals, displayed as MIN). The module uses an Object-based vault pattern since `FungibleAsset` has no `store` ability in Initia Move. Coins are deposited to the vault via `primary_fungible_store::deposit`, and pool amounts are tracked as plain `u64` values.
+
+### Building & Deploying
+
+```bash
+cd contracts
+minitiad move build --language-version=2.1 --named-addresses pinitia=<deployer_hex_addr>
+minitiad move deploy --named-addresses pinitia=<deployer_hex_addr> \
+  --from <key> --keyring-backend test \
+  --chain-id pinitia-1 --gas auto --gas-adjustment 1.4 --yes
+```
 
 ---
 
@@ -201,7 +253,9 @@ Chain: **pinitia-1** (Initia EVM Minitia)
 
 - [bun](https://bun.sh/) (runtime + package manager)
 - [Docker](https://docs.docker.com/get-docker/) (for local PostgreSQL)
-- [Foundry](https://book.getfoundry.sh/) (for contracts)
+- [Go](https://go.dev/) (for building minitiad)
+- `minitiad` (minimove binary — `git clone https://github.com/initia-labs/minimove.git && make install`)
+- `weave` + `initiad` (for rollup management — `scripts/install-tools.sh`)
 - Google Places API key
 
 ### Install
@@ -215,10 +269,11 @@ bun run install:all
 **Oracle** (`oracle/.env`) — copy from `oracle/.env.example`:
 
 ```
-ORACLE_PRIVATE_KEY=        # EOA private key for posting oracle data
-MINITIA_RPC_URL=           # Minitia JSON-RPC endpoint
-PLACE_ORACLE_ADDRESS=      # PlaceOracle contract address
-MARKET_FACTORY_ADDRESS=    # MarketFactory contract address
+MODULE_ADDRESS=            # Bech32 deployer address (init1...)
+MODULE_NAME=prediction_market
+ORACLE_KEY_NAME=           # Keyring key name (e.g., gas-station)
+CHAIN_ID=pinitia-1
+REST_URL=http://localhost:1317
 GOOGLE_PLACES_API_KEY=     # Google Places API key
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pinitia
 ```
@@ -226,9 +281,9 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pinitia
 **Frontend** (`frontend/.env.local`):
 
 ```
-NEXT_PUBLIC_MINITIA_RPC_URL=           # Minitia JSON-RPC endpoint
-NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=    # MarketFactory contract address
+NEXT_PUBLIC_MODULE_ADDRESS=    # Bech32 deployer address (init1...)
 NEXT_PUBLIC_CHAIN_ID=pinitia-1
+NEXT_PUBLIC_REST_URL=http://localhost:1317
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pinitia
 ```
 
@@ -253,11 +308,8 @@ bun run oracle:seed-all
 # Browse database (Drizzle Studio)
 bun run oracle:db-studio
 
-# Compile contracts
-bun run contracts:build
-
-# Run contract tests
-bun run contracts:test
+# Build Move module
+cd contracts && minitiad move build --language-version=2.1 --named-addresses pinitia=<hex_addr>
 ```
 
 ### Seeding & Testing
@@ -267,12 +319,8 @@ bun run contracts:test
 bun run oracle:seed-all
 bun run oracle:seed-all -- --bets 5 --max-amount 2
 
-# Quick test: create 5 markets that resolve in 5 min, with bets pre-seeded
-bun run oracle:seed-quick
-bun run oracle:seed-quick -- --minutes 10  # custom resolve window
-
 # Force-resolve a market (for testing)
-bun run oracle:force-resolve <market-address> long|short
+bun run oracle:force-resolve <market-id> long|short
 ```
 
 ---
@@ -285,78 +333,61 @@ bun run oracle:force-resolve <market-address> long|short
 
 **Google Places as oracle source**: Publicly verifiable, no insider advantage, updates organically. The hourly cron provides sufficient resolution for markets that resolve over days/weeks.
 
-**Initia EVM (Minitia)**: Native Cosmos wallet UX via InterwovenKit with EVM contract execution. Auto-signing means users can place multiple bets without repeated popups.
+**Initia Move (minimove)**: Native Cosmos wallet UX via InterwovenKit with Move module execution. Single module consolidates all logic — no separate contract deployments per market. Auto-signing means users can place multiple bets without repeated popups.
+
+**Object vault pattern**: FungibleAsset in Initia Move has no `store` ability, so coins can't be stored directly in resources. The module creates an Object with an ExtendRef and uses `primary_fungible_store` for deposits/withdrawals, tracking pool amounts as plain `u64`.
 
 **Off-chain snapshots**: Historical rating/review data stored in PostgreSQL (via Drizzle ORM) for fast frontend chart rendering. On-chain data is limited to resolution-critical values.
 
----
-
-## Smart Contract Details
-
-### MarketFactory
-
-- `createVelocityMarket(placeId, target, resolveDate, initialReviewCount)` → deploys a new Market
-- `createRatingMarket(placeId, target, resolveDate)` → deploys a new Market
-- `getActiveMarkets()` → all market addresses
-- `getMarketsByPlace(placeId)` → markets for a specific venue
-- Max 5 markets per place
-
-### Market
-
-- `betLong() payable` / `betShort() payable` — place bets (must be before resolve date)
-- `claim()` — winners withdraw payout after resolution
-- `getMarketInfo()` → full market state
-- `getUserPosition(address)` → user's bets and claimable amount
-- Resolution is oracle-only; called automatically by PlaceOracle
-
-### PlaceOracle
-
-- `postPlaceData(placeId, rating, reviewCount)` — oracle EOA posts fresh data
-- `batchPost(placeIds[], ratings[], reviewCounts[])` — batch version
-- Auto-resolves all markets for a place that are past their resolve date
-- `forceResolveMarket(marketAddr, rating, reviewCount)` — owner-only override
+**CLI-based oracle**: The oracle uses `minitiad tx move execute` via `child_process.execSync` instead of a TypeScript SDK. This leverages the local keyring (`--keyring-backend test`) — no private keys in environment variables.
 
 ---
 
 ## Transaction Pattern
 
-All write transactions go through InterwovenKit's `requestTxBlock` using Initia's EVM message type:
+All write transactions go through InterwovenKit's `requestTxBlock` using Initia's Move execution message type:
 
 ```typescript
+import { MsgExecute } from "@initia/initia.proto/initia/move/v1/tx";
+
 await requestTxBlock({
   chainId: "pinitia-1",
   messages: [
     {
-      typeUrl: "/minievm.evm.v1.MsgCall",
-      value: {
-        sender: initiaAddress.toLowerCase(), // bech32
-        contractAddr: marketAddress, // hex
-        input: encodeFunctionData({ abi, functionName, args }),
-        value: parseEther(amount).toString(),
-        accessList: [],
-        authList: [],
-      },
+      typeUrl: "/initia.move.v1.MsgExecute",
+      value: MsgExecute.fromPartial({
+        sender: initiaAddress, // bech32
+        moduleAddress: MODULE_ADDRESS, // bech32
+        moduleName: "prediction_market",
+        functionName: "bet_long",
+        typeArgs: [],
+        args: [
+          bcsEncodeAddress(MODULE_ADDRESS),
+          bcsEncodeU64(marketId),
+          bcsEncodeU64(amount),
+        ],
+      }),
     },
   ],
 });
 ```
 
-Read calls use a standalone viem `publicClient` — no wallet extension required.
+Read calls use REST view queries via `POST /initia/move/v1/view` — no viem or JSON-RPC required.
 
 ---
 
 ## Submission Checklist
 
-- [x] Smart contracts deployed on `pinitia-1`
+- [x] Move module written and builds
 - [x] PostgreSQL schema via Drizzle ORM
 - [x] Frontend with venue browsing, market detail, portfolio, leaderboard
 - [x] InterwovenKit wallet connection + auto-signing
-- [x] Oracle pipeline (hourly Google Places → PostgreSQL + on-chain)
+- [x] Oracle pipeline (hourly Google Places → PostgreSQL + on-chain via minitiad CLI)
 - [x] Historical snapshot charts (Recharts)
-- [x] 10–15 markets seeded across multiple venues
-- [x] Oracle resolves at least 1 market end-to-end
+- [ ] Deploy module to pinitia-1 and seed markets
+- [ ] Oracle resolves at least 1 market end-to-end
 - [ ] `.initia/submission.json`
-- [ ] Demo video (1–3 min)
+- [ ] Demo video (1-3 min)
 - [ ] Public GitHub repo
 
 ---
@@ -365,36 +396,37 @@ Read calls use a standalone viem `publicClient` — no wallet extension required
 
 ```
 pinitia/
-├── contracts/              # Solidity smart contracts (Foundry)
-│   ├── src/
-│   │   ├── MarketFactory.sol
-│   │   ├── Market.sol
-│   │   └── PlaceOracle.sol
-│   ├── script/Deploy.s.sol
-│   └── test/
+├── contracts/         # Move module
+│   ├── Move.toml
+│   └── sources/
+│       └── prediction_market.move
 ├── frontend/               # Next.js 15 app
 │   └── src/
 │       ├── app/            # Pages (home, venue, market, portfolio, leaderboard)
 │       ├── components/     # UI components
 │       ├── hooks/          # Data fetching (useMarkets, useBet, useClaim, etc.)
-│       └── lib/            # Config, ABIs, Drizzle DB client, schema, utilities
+│       └── lib/            # Config, Move helpers, Drizzle DB client, schema, utils
+│           ├── contracts.ts   # MODULE_ADDRESS, CHAIN_ID, REST_URL
+│           ├── move.ts        # RESTClient, BCS encoding, moveView wrapper
+│           ├── chain.ts       # Custom chain config (minimove, umin)
+│           └── schema.ts      # Drizzle table schema (shared with oracle)
 ├── oracle/                 # Oracle service
 │   └── src/
 │       ├── index.ts        # Hourly cron entry point
-│       ├── utils/          # Shared modules
-│       │   ├── config.ts   # Environment config
-│       │   ├── abis.ts     # Contract ABIs (ethers human-readable)
+│       ├── utils/
+│       │   ├── config.ts   # Environment config (MODULE_ADDRESS, ORACLE_KEY_NAME, etc.)
 │       │   ├── fetcher.ts  # Google Places API client
-│       │   ├── poster.ts   # On-chain posting via ethers.js
+│       │   ├── poster.ts   # On-chain posting via minitiad CLI + REST view queries
 │       │   ├── db.ts       # PostgreSQL reads/writes via Drizzle
 │       │   └── schema.ts   # Drizzle table schema
-│       ├── scripts/        # CLI scripts
+│       ├── scripts/
 │       │   ├── seed-all.ts      # Master seed: places → markets → bets → force-resolve
-│       │   ├── seed-quick.ts    # Quick markets (5-min resolve) + bets
 │       │   └── force-resolve.ts # Force-resolve a market for testing
 │       └── data/
 │           └── venues.json # Curated venue list
-└── CLAUDE.md
+├── CLAUDE.md
+├── DEEP_DIVE.md
+└── README.md
 ```
 
 ---

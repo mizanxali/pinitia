@@ -99,7 +99,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {activeMarkets.map((m) => (
-                <MarketCard key={m.address} market={m} />
+                <MarketCard key={m.marketId} market={m} />
               ))}
             </div>
           )}
@@ -123,7 +123,7 @@ export default function VenueDetail({ placeId }: { placeId: string }) {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {resolvedMarkets.map((m) => (
-                <MarketCard key={m.address} market={m} />
+                <MarketCard key={m.marketId} market={m} />
               ))}
             </div>
           )}
